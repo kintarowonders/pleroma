@@ -610,6 +610,10 @@ defmodule Pleroma.Web.Router do
     post("/push/subscriptions/:id", Websub.WebsubController, :websub_incoming)
   end
 
+  scope "/", Pleroma.Web do
+    get("/users/:nickname/hcard", HCard.Controller, :profile)
+  end
+
   pipeline :activitypub do
     plug(:accepts, ["activity+json", "json"])
     plug(Pleroma.Web.Plugs.HTTPSignaturePlug)
