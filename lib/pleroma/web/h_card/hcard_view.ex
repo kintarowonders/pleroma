@@ -6,8 +6,8 @@ defmodule Pleroma.Web.HCard.HCardView do
   use Pleroma.Web, :view
 
   alias Pleroma.FlakeId
+  alias Pleroma.Keys
   alias Pleroma.User
-  alias Pleroma.Web.Salmon
 
   import Phoenix.HTML.Link
   import Phoenix.HTML.Tag
@@ -26,7 +26,7 @@ defmodule Pleroma.Web.HCard.HCardView do
   def to_guid(%User{} = user), do: FlakeId.from_string(user.id) |> flake_to_guid()
 
   def public_key(%User{} = user) do
-    {:ok, _, public_key} = Salmon.keys_from_pem(user.info.keys)
+    {:ok, _, public_key} = Keys.keys_from_pem(user.info.keys)
     public_key = :public_key.pem_entry_encode(:SubjectPublicKeyInfo, public_key)
     :public_key.pem_encode([public_key])
   end
