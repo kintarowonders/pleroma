@@ -3923,4 +3923,111 @@ defmodule Pleroma.Web.MastodonAPI.MastodonAPIControllerTest do
       assert conn.resp_body == ""
     end
   end
+
+  describe "reply_visibility" do
+    setup do
+      user = insert(:user)
+      followed = insert(:user)
+      {:ok, user} = User.follow(user, followed)
+      not_followed = insert(:user)
+
+      {:ok, activity} = CommonAPI.post(not_followed, %{"status" => "not followed test"})
+
+      {:ok, _reply} =
+        CommonAPI.post(followed, %{
+          "status" => "reply by followed to not followed",
+          "in_reply_to_status_id" => activity.id
+        })
+
+      {:ok, activity} = CommonAPI.post(followed, %{"status" => "from followed test "})
+
+      {:ok, _reply} =
+        CommonAPI.post(not_followed, %{
+          "status" => "reply from not followed to followed",
+          "in_reply_to_status_id" => activity.id
+        })
+
+      {:ok, activity} = CommonAPI.post(user, %{"status" => "from user test "})
+
+      {:ok, _reply} =
+        CommonAPI.post(not_followed, %{
+          "status" => "reply from not followed to user",
+          "in_reply_to_status_id" => activity.id
+        })
+
+      {:ok, user: user}
+    end
+
+    test "/main/friends timeline without parameter", %{user: user, conn: conn} do
+      conn =
+        assign(conn, :user, user)
+        |> get("/api/v1/timelines/home")
+
+      response = json_response(conn, 200)
+      assert length(response) == 4
+    end
+
+    test "/main/friends timeline with 'all'", %{user: user, conn: conn} do
+      conn =
+        assign(conn, :user, user)
+        |> get("/api/v1/timelines/home", %{"reply_visibility" => "all"})
+
+      response = json_response(conn, 200)
+      assert length(response) == 4
+    end
+
+    test "/main/friends timeline with 'following'", %{user: user, conn: conn} do
+      conn =
+        assign(conn, :user, user)
+        |> get("/api/v1/timelines/home", %{"reply_visibility" => "following"})
+
+      response = json_response(conn, 200)
+      assert length(response) == 4
+    end
+
+    test "/main/friends timeline with 'self'", %{user: user, conn: conn} do
+      conn =
+        assign(conn, :user, user)
+        |> get("/api/v1/timelines/home", %{"reply_visibility" => "self"})
+
+      response = json_response(conn, 200)
+      assert length(response) == 3
+    end
+
+    test "/main/public timeline without parameter", %{user: user, conn: conn} do
+      conn =
+        assign(conn, :user, user)
+        |> get("/api/v1/timelines/public")
+
+      response = json_response(conn, 200)
+      assert length(response) == 6
+    end
+
+    test "/main/public timeline with 'all", %{user: user, conn: conn} do
+      conn =
+        assign(conn, :user, user)
+        |> get("/api/v1/timelines/public", %{"reply_visibility" => "all"})
+
+      response = json_response(conn, 200)
+      assert length(response) == 6
+    end
+
+    test "/main/public timeline with 'following'", %{user: user, conn: conn} do
+      conn =
+        assign(conn, :user, user)
+        |> get("/api/v1/timelines/public", %{"reply_visibility" => "following"})
+
+      response = json_response(conn, 200)
+      assert length(response) == 5
+    end
+
+    test "/main/public timeline with 'self'", %{user: user, conn: conn} do
+      conn =
+        assign(conn, :user, user)
+        |> get("/api/v1/timelines/public", %{"reply_visibility" => "self"})
+
+      response = json_response(conn, 200)
+      assert length(response) == 4
+    end
+  end
 end

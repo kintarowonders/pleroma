@@ -402,6 +402,14 @@ defmodule Pleroma.Web.MastodonAPI.MastodonAPIController do
     end
   end
 
+  defp reply_visibility_params(%{"reply_visibility" => "self"} = params, user),
+    do: Map.put(params, "reply_recipients", [user.ap_id])
+
+  defp reply_visibility_params(%{"reply_visibility" => "following"} = params, user),
+    do: Map.put(params, "reply_recipients", [user.following])
+
+  defp reply_visibility_params(params, _user), do: params
+
   def home_timeline(%{assigns: %{user: user}} = conn, params) do
     params =
       params
@@ -409,6 +417,8 @@ defmodule Pleroma.Web.MastodonAPI.MastodonAPIController do
       |> Map.put("blocking_user", user)
       |> Map.put("muting_user", user)
       |> Map.put("user", user)
+
+    params = reply_visibility_params(params, user)
 
     activities =
       [user.ap_id | user.following]
@@ -423,6 +433,8 @@ defmodule Pleroma.Web.MastodonAPI.MastodonAPIController do
 
   def public_timeline(%{assigns: %{user: user}} = conn, params) do
     local_only = params["local"] in [true, "True", "true", "1"]
+
+    params = reply_visibility_params(params, user)
 
     activities =
       params

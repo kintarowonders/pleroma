@@ -519,10 +519,12 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
     recipients =
       if opts["user"], do: [opts["user"].ap_id | opts["user"].following] ++ public, else: public
 
+    opts = Map.put(opts, "user", opts["user"])
+
     from(activity in Activity)
     |> maybe_preload_objects(opts)
     |> restrict_blocked(opts)
-    |> restrict_recipients(recipients, opts["user"])
+    |> restrict_recipients(recipients, opts)
     |> where(
       [activity],
       fragment(
@@ -709,13 +711,55 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
 
   defp restrict_tag(query, _), do: query
 
-  defp restrict_recipients(query, [], _user), do: query
+  defp restrict_recipients(query, [], _opts), do: query
 
-  defp restrict_recipients(query, recipients, nil) do
+  defp restrict_recipients(
+         query,
+         recipients,
+         %{"user" => nil, "reply_visibility" => visibility} = opts
+       )
+       when visibility in ["following", "self"] do
+    from([activity, object] in query,
+      where:
+        fragment(
+          "CASE WHEN ?->>'inReplyTo' IS NOT NULL THEN ? && ? ELSE ? && ? END",
+          object.data,
+          ^opts["reply_recipients"],
+          activity.recipients,
+          ^recipients,
+          activity.recipients
+        )
+    )
+  end
+
+  defp restrict_recipients(query, recipients, %{"user" => nil}) do
     from(activity in query, where: fragment("? && ?", ^recipients, activity.recipients))
   end
 
-  defp restrict_recipients(query, recipients, user) do
+  defp restrict_recipients(
+         query,
+         recipients,
+         %{"user" => user, "reply_visibility" => "self"} = opts
+       ) do
+    from(
+      [activity, object] in query,
+      where:
+        fragment(
+          "CASE WHEN ?->>'inReplyTo' IS NOT NULL THEN ? && ? OR ? = ? ELSE ? && ? OR ? = ?END",
+          object.data,
+          ^opts["reply_recipients"],
+          activity.recipients,
+          activity.actor,
+          ^user.ap_id,
+          ^recipients,
+          activity.recipients,
+          activity.actor,
+          ^user.ap_id
+        )
+    )
+  end
+
+  defp restrict_recipients(query, recipients, %{"user" => user}) do
     from(
       activity in query,
       where: fragment("? && ?", ^recipients, activity.recipients),
@@ -908,6 +952,8 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
   defp maybe_order(query, _), do: query
 
   def fetch_activities_query(recipients, opts \\ %{}) do
+    opts = Map.put(opts, "user", opts["user"])
+
     config = %{
       skip_thread_containment: Config.get([:instance, :skip_thread_containment])
     }
@@ -917,7 +963,7 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
     |> maybe_preload_bookmarks(opts)
     |> maybe_set_thread_muted_field(opts)
     |> maybe_order(opts)
-    |> restrict_recipients(recipients, opts["user"])
+    |> restrict_recipients(recipients, opts)
     |> restrict_tag(opts)
     |> restrict_tag_reject(opts)
     |> restrict_tag_all(opts)
