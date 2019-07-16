@@ -650,6 +650,21 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubTest do
 
       assert Enum.any?(activities, fn %{id: id} -> id == activity.id end)
     end
+
+    test "doesn't retrieve replies activities with exclude_replies" do
+      user = insert(:user)
+
+      {:ok, activity} = CommonAPI.post(user, %{"status" => "yeah"})
+
+      {:ok, _reply} =
+        CommonAPI.post(user, %{"status" => "yeah", "in_reply_to_status_id" => activity.id})
+
+      [result] = ActivityPub.fetch_public_activities(%{"exclude_replies" => "true"})
+
+      assert result.id == activity.id
+
+      assert length(ActivityPub.fetch_public_activities()) == 2
+    end
   end
 
   describe "like an object" do
