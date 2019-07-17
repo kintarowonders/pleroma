@@ -745,7 +745,7 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
       [activity, object] in query,
       where:
         fragment(
-          "CASE WHEN ?->>'inReplyTo' IS NOT NULL THEN ? && ? OR ? = ? ELSE ? && ? OR ? = ?END",
+          "CASE WHEN ?->>'inReplyTo' IS NOT NULL THEN ? && ? OR ? = ? ELSE ? && ? OR ? = ? END",
           object.data,
           ^opts["reply_recipients"],
           activity.recipients,
