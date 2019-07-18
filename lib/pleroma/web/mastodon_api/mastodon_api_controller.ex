@@ -411,12 +411,15 @@ defmodule Pleroma.Web.MastodonAPI.MastodonAPIController do
   defp reply_visibility_params(params, _user), do: params
 
   def home_timeline(%{assigns: %{user: user}} = conn, params) do
+    visibility = params["reply_visibility"] || "following"
+
     params =
       params
       |> Map.put("type", ["Create", "Announce"])
       |> Map.put("blocking_user", user)
       |> Map.put("muting_user", user)
       |> Map.put("user", user)
+      |> Map.put("reply_visibility", visibility)
 
     params = reply_visibility_params(params, user)
 

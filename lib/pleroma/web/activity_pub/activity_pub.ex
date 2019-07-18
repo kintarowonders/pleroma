@@ -605,25 +605,6 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
 
   defp restrict_visibility(query, _visibility), do: query
 
-  defp restrict_thread_visibility(query, _, %{skip_thread_containment: true} = _),
-    do: query
-
-  defp restrict_thread_visibility(
-         query,
-         %{"user" => %User{info: %{skip_thread_containment: true}}},
-         _
-       ),
-       do: query
-
-  defp restrict_thread_visibility(query, %{"user" => %User{ap_id: ap_id}}, _) do
-    from(
-      a in query,
-      where: fragment("thread_visibility(?, (?)->>'id') = true", ^ap_id, a.data)
-    )
-  end
-
-  defp restrict_thread_visibility(query, _, _), do: query
-
   def fetch_user_activities(user, reading_user, params \\ %{}) do
     params =
       params
@@ -741,13 +722,15 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
          recipients,
          %{"user" => user, "reply_visibility" => "self"} = opts
        ) do
+    reply_recipients = opts["reply_recipients"] || [user.ap_id]
+
     from(
       [activity, object] in query,
       where:
         fragment(
           "CASE WHEN ?->>'inReplyTo' IS NOT NULL THEN ? && ? OR ? = ? ELSE ? && ? OR ? = ? END",
           object.data,
-          ^opts["reply_recipients"],
+          ^reply_recipients,
           activity.recipients,
           activity.actor,
           ^user.ap_id,
@@ -954,9 +937,19 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
   def fetch_activities_query(recipients, opts \\ %{}) do
     opts = Map.put(opts, "user", opts["user"])
 
-    config = %{
-      skip_thread_containment: Config.get([:instance, :skip_thread_containment])
-    }
+    instance_setting = Config.get([:instance, :skip_thread_containment])
+
+    skip =
+      if is_nil(opts["user"]) or instance_setting != :false_default do
+        instance_setting
+      else
+        opts["user"].info.skip_thread_containment
+      end
+
+    opts =
+      if !is_nil(opts["user"]) and !skip and is_nil(opts["reply_visibility"]),
+        do: Map.put(opts, "reply_visibility", "self"),
+        else: opts
 
     Activity
     |> maybe_preload_objects(opts)
@@ -977,7 +970,6 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
     |> restrict_muted(opts)
     |> restrict_media(opts)
     |> restrict_visibility(opts)
-    |> restrict_thread_visibility(opts, config)
     |> restrict_replies(opts)
     |> restrict_reblogs(opts)
     |> restrict_pinned(opts)

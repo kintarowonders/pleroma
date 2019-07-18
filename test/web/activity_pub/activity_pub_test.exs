@@ -1019,6 +1019,180 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubTest do
       assert [public_activity.id, private_activity_1.id] == activities
       assert length(activities) == 2
     end
+
+    test "it doesn't filter broken threads" do
+      skip = Pleroma.Config.get([:instance, :skip_thread_containment])
+      Pleroma.Config.put([:instance, :skip_thread_containment], true)
+
+      on_exit(fn ->
+        Pleroma.Config.put([:instance, :skip_thread_containment], skip)
+      end)
+
+      user1 = insert(:user)
+      user2 = insert(:user)
+      user3 = insert(:user)
+
+      {:ok, user1} = User.follow(user1, user3)
+      assert User.following?(user1, user3)
+
+      {:ok, user2} = User.follow(user2, user3)
+      assert User.following?(user2, user3)
+
+      {:ok, user3} = User.follow(user3, user2)
+      assert User.following?(user3, user2)
+
+      {:ok, public_activity} = CommonAPI.post(user3, %{"status" => "hi 1"})
+
+      {:ok, private_activity_1} =
+        CommonAPI.post(user3, %{"status" => "hi 2", "visibility" => "private"})
+
+      {:ok, private_activity_2} =
+        CommonAPI.post(user2, %{
+          "status" => "hi 3",
+          "visibility" => "private",
+          "in_reply_to_status_id" => private_activity_1.id
+        })
+
+      {:ok, private_activity_3} =
+        CommonAPI.post(user3, %{
+          "status" => "hi 4",
+          "visibility" => "private",
+          "in_reply_to_status_id" => private_activity_2.id
+        })
+
+      activities =
+        ActivityPub.fetch_activities([user1.ap_id | user1.following])
+        |> Enum.map(fn a -> a.id end)
+
+      private_activity_1 = Activity.get_by_ap_id_with_object(private_activity_1.data["id"])
+
+      assert [public_activity.id, private_activity_1.id, private_activity_3.id] == activities
+
+      assert length(activities) == 3
+
+      activities =
+        ActivityPub.fetch_activities([user1.ap_id | user1.following], %{"user" => user1})
+        |> Enum.map(fn a -> a.id end)
+
+      assert [public_activity.id, private_activity_1.id, private_activity_3.id] == activities
+      assert length(activities) == 3
+    end
+
+    test "filters broken threads with instance default_false respects user setting to false" do
+      skip = Pleroma.Config.get([:instance, :skip_thread_containment])
+      Pleroma.Config.put([:instance, :skip_thread_containment], :false_default)
+
+      on_exit(fn ->
+        Pleroma.Config.put([:instance, :skip_thread_containment], skip)
+      end)
+
+      user1 = insert(:user, %{info: %{skip_thread_containment: false}})
+      user2 = insert(:user)
+      user3 = insert(:user)
+
+      {:ok, user1} = User.follow(user1, user3)
+      assert User.following?(user1, user3)
+
+      {:ok, user2} = User.follow(user2, user3)
+      assert User.following?(user2, user3)
+
+      {:ok, user3} = User.follow(user3, user2)
+      assert User.following?(user3, user2)
+
+      {:ok, public_activity} = CommonAPI.post(user3, %{"status" => "hi 1"})
+
+      {:ok, private_activity_1} =
+        CommonAPI.post(user3, %{"status" => "hi 2", "visibility" => "private"})
+
+      {:ok, private_activity_2} =
+        CommonAPI.post(user2, %{
+          "status" => "hi 3",
+          "visibility" => "private",
+          "in_reply_to_status_id" => private_activity_1.id
+        })
+
+      {:ok, private_activity_3} =
+        CommonAPI.post(user3, %{
+          "status" => "hi 4",
+          "visibility" => "private",
+          "in_reply_to_status_id" => private_activity_2.id
+        })
+
+      activities =
+        ActivityPub.fetch_activities([user1.ap_id | user1.following])
+        |> Enum.map(fn a -> a.id end)
+
+      private_activity_1 = Activity.get_by_ap_id_with_object(private_activity_1.data["id"])
+
+      assert [public_activity.id, private_activity_1.id, private_activity_3.id] == activities
+
+      assert length(activities) == 3
+
+      activities =
+        ActivityPub.fetch_activities([user1.ap_id | user1.following], %{"user" => user1})
+        |> Enum.map(fn a -> a.id end)
+
+      assert [public_activity.id, private_activity_1.id] == activities
+      assert length(activities) == 2
+    end
+
+    test "filters broken threads with instance default_false respects user setting to true" do
+      skip = Pleroma.Config.get([:instance, :skip_thread_containment])
+      Pleroma.Config.put([:instance, :skip_thread_containment], :false_default)
+
+      on_exit(fn ->
+        Pleroma.Config.put([:instance, :skip_thread_containment], skip)
+      end)
+
+      user1 = insert(:user, %{info: %{skip_thread_containment: true}})
+      user2 = insert(:user)
+      user3 = insert(:user)
+
+      {:ok, user1} = User.follow(user1, user3)
+      assert User.following?(user1, user3)
+
+      {:ok, user2} = User.follow(user2, user3)
+      assert User.following?(user2, user3)
+
+      {:ok, user3} = User.follow(user3, user2)
+      assert User.following?(user3, user2)
+
+      {:ok, public_activity} = CommonAPI.post(user3, %{"status" => "hi 1"})
+
+      {:ok, private_activity_1} =
+        CommonAPI.post(user3, %{"status" => "hi 2", "visibility" => "private"})
+
+      {:ok, private_activity_2} =
+        CommonAPI.post(user2, %{
+          "status" => "hi 3",
+          "visibility" => "private",
+          "in_reply_to_status_id" => private_activity_1.id
+        })
+
+      {:ok, private_activity_3} =
+        CommonAPI.post(user3, %{
+          "status" => "hi 4",
+          "visibility" => "private",
+          "in_reply_to_status_id" => private_activity_2.id
+        })
+
+      activities =
+        ActivityPub.fetch_activities([user1.ap_id | user1.following])
+        |> Enum.map(fn a -> a.id end)
+
+      private_activity_1 = Activity.get_by_ap_id_with_object(private_activity_1.data["id"])
+
+      assert [public_activity.id, private_activity_1.id, private_activity_3.id] == activities
+
+      assert length(activities) == 3
+
+      activities =
+        ActivityPub.fetch_activities([user1.ap_id | user1.following], %{"user" => user1})
+        |> Enum.map(fn a -> a.id end)
+
+      assert [public_activity.id, private_activity_1.id, private_activity_3.id] == activities
+      assert length(activities) == 3
+    end
   end
 
   describe "update" do
