@@ -5,7 +5,6 @@
 defmodule Pleroma.Web.ActivityPub.Visibility do
   alias Pleroma.Activity
   alias Pleroma.Object
-  alias Pleroma.Repo
   alias Pleroma.User
 
   @public "https://www.w3.org/ns/activitystreams#Public"
@@ -58,14 +57,22 @@ defmodule Pleroma.Web.ActivityPub.Visibility do
     visible_for_user?(activity, nil) || Enum.any?(x, &(&1 in y))
   end
 
-  def entire_thread_visible_for_user?(%Activity{} = activity, %User{} = user) do
-    {:ok, %{rows: [[result]]}} =
-      Ecto.Adapters.SQL.query(Repo, "SELECT thread_visibility($1, $2)", [
-        user.ap_id,
-        activity.data["id"]
-      ])
+  def entire_thread_visible_for_user?(%Activity{id: nil}, _), do: false
+  def entire_thread_visible_for_user?(%Activity{data: %{"id" => nil}}, _), do: false
 
-    result
+  def entire_thread_visible_for_user?(%Activity{data: %{"type" => type}}, _)
+      when type != "Create",
+      do: true
+
+  def entire_thread_visible_for_user?(%Activity{} = activity, %User{} = user) do
+    activity_actor = User.get_by_ap_id(activity.actor)
+
+    recipients =
+      if activity_actor.follower_address in user.following,
+        do: [user.ap_id, @public, activity_actor.follower_address],
+        else: [user.ap_id, @public]
+
+    Enum.any?(recipients, fn recipient -> recipient in activity.recipients end)
   end
 
   def get_visibility(object) do
