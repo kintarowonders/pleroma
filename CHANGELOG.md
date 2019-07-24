@@ -52,6 +52,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Added synchronization of following/followers counters for external users
 - Configuration: `enabled` option for `Pleroma.Emails.Mailer`, defaulting to `false`.
 - Configuration: Pleroma.Plugs.RateLimiter `bucket_name`, `params` options.
+- Connfiguration: added possibility set `skip_thread_containment` to `:false_default` in instance settings, so user setting take effect.
 - Addressable lists
 - Twitter API: added rate limit for `/api/account/password_reset` endpoint.
 - ActivityPub: Add an internal service actor for fetching ActivityPub objects.
