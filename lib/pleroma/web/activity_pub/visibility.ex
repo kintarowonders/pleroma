@@ -57,22 +57,25 @@ defmodule Pleroma.Web.ActivityPub.Visibility do
     visible_for_user?(activity, nil) || Enum.any?(x, &(&1 in y))
   end
 
-  def entire_thread_visible_for_user?(%Activity{id: nil}, _), do: false
-  def entire_thread_visible_for_user?(%Activity{data: %{"id" => nil}}, _), do: false
-
   def entire_thread_visible_for_user?(%Activity{data: %{"type" => type}}, _)
       when type != "Create",
       do: true
 
   def entire_thread_visible_for_user?(%Activity{} = activity, %User{} = user) do
-    activity_actor = User.get_by_ap_id(activity.actor)
+    activity = Activity.get_by_ap_id(activity.data["id"])
 
-    recipients =
-      if activity_actor.follower_address in user.following,
-        do: [user.ap_id, @public, activity_actor.follower_address],
-        else: [user.ap_id, @public]
+    if is_nil(activity) do
+      false
+    else
+      activity_actor = User.get_by_ap_id(activity.actor)
 
-    Enum.any?(recipients, fn recipient -> recipient in activity.recipients end)
+      recipients =
+        if activity_actor.follower_address in user.following,
+          do: [user.ap_id, @public, activity_actor.follower_address],
+          else: [user.ap_id, @public]
+
+      Enum.any?(recipients, fn recipient -> recipient in activity.recipients end)
+    end
   end
 
   def get_visibility(object) do
