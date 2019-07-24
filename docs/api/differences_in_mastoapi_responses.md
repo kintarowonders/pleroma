@@ -12,7 +12,8 @@ Some apps operate under the assumption that no more than 4 attachments can be re
 
 ## Timelines
 
-Adding the parameter `with_muted=true` to the timeline queries will also return activities by muted (not by blocked!) users.
+- Adding the parameter `with_muted=true` to the timeline queries will also return activities by muted (not by blocked!) users.
+- Adding the parameter `reply_visibility` to the public and friends timeline quieries will filter replies. Possible values: `all` - show all replies, `following` - replies directed for you or users you follow, `self` - replies directed to you.
 
 ## Statuses
 
