@@ -4,6 +4,7 @@
 
 defmodule Pleroma.InstanceTest do
   use ExUnit.Case, async: true
+  alias Pleroma.Polyfill
 
   setup do
     File.mkdir_p!(tmp_path())
@@ -16,7 +17,7 @@ defmodule Pleroma.InstanceTest do
 
     on_exit(fn ->
       File.rm_rf(tmp_path())
-      Application.put_all_env(config)
+      Polyfill.apply_or_fallback(Application, :put_all_env, [config])
     end)
 
     :ok

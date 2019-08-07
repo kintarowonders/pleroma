@@ -5,6 +5,7 @@
 defmodule Mix.Tasks.Pleroma.Instance do
   use Mix.Task
   import Mix.Pleroma
+  alias Pleroma.Polyfill
 
   @shortdoc "Manages Pleroma instance"
   @moduledoc """
@@ -226,15 +227,17 @@ defmodule Mix.Tasks.Pleroma.Instance do
       shell_info("Writing the postgres script to #{psql_path}.")
       File.write(psql_path, result_psql)
 
-      Config.Reader.read!(config_path)
-      |> Enum.map(fn {application, config} ->
-        config =
-          Application.get_all_env(application)
-          |> Config.Reader.merge(config)
+      new_config =
+        Config.Reader.read!(config_path)
+        |> Enum.map(fn {application, config} ->
+          config =
+            Application.get_all_env(application)
+            |> Config.Reader.merge(config)
 
-        {application, config}
-      end)
-      |> Application.put_all_env()
+          {application, config}
+        end)
+
+      Polyfill.apply_or_fallback(Application, :put_all_env, [new_config])
 
       write_robots_txt(indexable, template_dir)
 
