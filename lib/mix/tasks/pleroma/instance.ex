@@ -226,6 +226,16 @@ defmodule Mix.Tasks.Pleroma.Instance do
       shell_info("Writing the postgres script to #{psql_path}.")
       File.write(psql_path, result_psql)
 
+      Config.Reader.read!(config_path)
+      |> Enum.map(fn {application, config} ->
+        config =
+          Application.get_all_env(application)
+          |> Config.Reader.merge(config)
+
+        {application, config}
+      end)
+      |> Application.put_all_env()
+
       write_robots_txt(indexable, template_dir)
 
       shell_info(

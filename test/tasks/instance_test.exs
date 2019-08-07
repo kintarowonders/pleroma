@@ -7,7 +7,18 @@ defmodule Pleroma.InstanceTest do
 
   setup do
     File.mkdir_p!(tmp_path())
-    on_exit(fn -> File.rm_rf(tmp_path()) end)
+
+    config =
+      Application.loaded_applications()
+      |> Enum.map(fn {application, _, _} ->
+        {application, Application.get_all_env(application)}
+      end)
+
+    on_exit(fn ->
+      File.rm_rf(tmp_path())
+      Application.put_all_env(config)
+    end)
+
     :ok
   end
 
@@ -40,7 +51,7 @@ defmodule Pleroma.InstanceTest do
         "--dbpass",
         "dbpass",
         "--indexable",
-        "y",
+        "n",
         "--db-configurable",
         "y",
         "--rum",
@@ -52,7 +63,7 @@ defmodule Pleroma.InstanceTest do
         "--uploads-dir",
         "test/uploads",
         "--static-dir",
-        "instance/static/"
+        tmp_path() <> "/static/"
       ])
     end
 
@@ -72,6 +83,7 @@ defmodule Pleroma.InstanceTest do
     assert generated_config =~ "dynamic_configuration: true"
     assert generated_config =~ "http: [ip: {127, 0, 0, 1}, port: 4000]"
     assert File.read!(tmp_path() <> "setup.psql") == generated_setup_psql()
+    assert File.exists?(tmp_path() <> "static/robots.txt")
   end
 
   defp generated_setup_psql do
