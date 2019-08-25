@@ -351,13 +351,91 @@ defmodule Pleroma.Web.MastodonAPI.MastodonAPIController do
     json(conn, mastodon_emoji)
   end
 
+  defp add_link_headers(conn, method, activities, param \\ nil, params \\ %{}) do
+    params =
+      conn.params
+      |> Map.drop(["since_id", "max_id", "min_id"])
+      |> Map.merge(params)
+
+    last = List.last(activities)
+
+    if last do
+      max_id = last.id
+
+      limit =
+        params
+        |> Map.get("limit", "20")
+        |> String.to_integer()
+
+      min_id =
+        if length(activities) <= limit do
+          activities
+          |> List.first()
+          |> Map.get(:id)
+        else
+          activities
+          |> Enum.at(limit * -1)
+          |> Map.get(:id)
+        end
+
+      {next_url, prev_url} =
+        if param do
+          {
+            mastodon_api_url(
+              Pleroma.Web.Endpoint,
+              method,
+              param,
+              Map.merge(params, %{max_id: max_id})
+            ),
+            mastodon_api_url(
+              Pleroma.Web.Endpoint,
+              method,
+              param,
+              Map.merge(params, %{min_id: min_id})
+            )
+          }
+        else
+          {
+            mastodon_api_url(
+              Pleroma.Web.Endpoint,
+              method,
+              Map.merge(params, %{max_id: max_id})
+            ),
+            mastodon_api_url(
+              Pleroma.Web.Endpoint,
+              method,
+              Map.merge(params, %{min_id: min_id})
+            )
+          }
+        end
+
+      conn
+      |> put_resp_header("link", "<#{next_url}>; rel=\"next\", <#{prev_url}>; rel=\"prev\"")
+    else
+      conn
+    end
+  end
+
+  defp reply_visibility_params(%{"reply_visibility" => "self"} = params, user),
+    do: Map.put(params, "reply_recipients", [user.ap_id])
+
+  defp reply_visibility_params(%{"reply_visibility" => "following"} = params, user),
+    do: Map.put(params, "reply_recipients", [user.following])
+
+  defp reply_visibility_params(params, _user), do: params
+
   def home_timeline(%{assigns: %{user: user}} = conn, params) do
+    visibility = params["reply_visibility"] || "following"
+
     params =
       params
       |> Map.put("type", ["Create", "Announce"])
       |> Map.put("blocking_user", user)
       |> Map.put("muting_user", user)
       |> Map.put("user", user)
+      |> Map.put("reply_visibility", visibility)
+
+    params = reply_visibility_params(params, user)
 
     activities =
       [user.ap_id | user.following]
@@ -372,6 +450,8 @@ defmodule Pleroma.Web.MastodonAPI.MastodonAPIController do
 
   def public_timeline(%{assigns: %{user: user}} = conn, params) do
     local_only = params["local"] in [true, "True", "true", "1"]
+
+    params = reply_visibility_params(params, user)
 
     activities =
       params

@@ -517,12 +517,14 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
     recipients =
       if opts["user"], do: [opts["user"].ap_id | opts["user"].following] ++ public, else: public
 
+    opts = Map.put(opts, "user", opts["user"])
+
     from(activity in Activity)
     |> maybe_preload_objects(opts)
     |> maybe_preload_bookmarks(opts)
     |> maybe_set_thread_muted_field(opts)
     |> restrict_blocked(opts)
-    |> restrict_recipients(recipients, opts["user"])
+    |> restrict_recipients(recipients, opts)
     |> where(
       [activity],
       fragment(
@@ -603,25 +605,6 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
   end
 
   defp restrict_visibility(query, _visibility), do: query
-
-  defp restrict_thread_visibility(query, _, %{skip_thread_containment: true} = _),
-    do: query
-
-  defp restrict_thread_visibility(
-         query,
-         %{"user" => %User{info: %{skip_thread_containment: true}}},
-         _
-       ),
-       do: query
-
-  defp restrict_thread_visibility(query, %{"user" => %User{ap_id: ap_id}}, _) do
-    from(
-      a in query,
-      where: fragment("thread_visibility(?, (?)->>'id') = true", ^ap_id, a.data)
-    )
-  end
-
-  defp restrict_thread_visibility(query, _, _), do: query
 
   def fetch_user_activities(user, reading_user, params \\ %{}) do
     params =
@@ -710,13 +693,57 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
 
   defp restrict_tag(query, _), do: query
 
-  defp restrict_recipients(query, [], _user), do: query
+  defp restrict_recipients(query, [], _opts), do: query
 
-  defp restrict_recipients(query, recipients, nil) do
+  defp restrict_recipients(
+         query,
+         recipients,
+         %{"user" => nil, "reply_visibility" => visibility} = opts
+       )
+       when visibility in ["following", "self"] do
+    from([activity, object] in query,
+      where:
+        fragment(
+          "CASE WHEN ?->>'inReplyTo' IS NOT NULL THEN ? && ? ELSE ? && ? END",
+          object.data,
+          ^opts["reply_recipients"],
+          activity.recipients,
+          ^recipients,
+          activity.recipients
+        )
+    )
+  end
+
+  defp restrict_recipients(query, recipients, %{"user" => nil}) do
     from(activity in query, where: fragment("? && ?", ^recipients, activity.recipients))
   end
 
-  defp restrict_recipients(query, recipients, user) do
+  defp restrict_recipients(
+         query,
+         recipients,
+         %{"user" => user, "reply_visibility" => "self"} = opts
+       ) do
+    reply_recipients = opts["reply_recipients"] || [user.ap_id]
+
+    from(
+      [activity, object] in query,
+      where:
+        fragment(
+          "CASE WHEN ?->>'inReplyTo' IS NOT NULL THEN ? && ? OR ? = ? ELSE ? && ? OR ? = ? END",
+          object.data,
+          ^reply_recipients,
+          activity.recipients,
+          activity.actor,
+          ^user.ap_id,
+          ^recipients,
+          activity.recipients,
+          activity.actor,
+          ^user.ap_id
+        )
+    )
+  end
+
+  defp restrict_recipients(query, recipients, %{"user" => user}) do
     from(
       activity in query,
       where: fragment("? && ?", ^recipients, activity.recipients),
@@ -776,8 +803,8 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
 
   defp restrict_replies(query, %{"exclude_replies" => val}) when val == "true" or val == "1" do
     from(
-      activity in query,
-      where: fragment("?->'object'->>'inReplyTo' is null", activity.data)
+      [_activity, object] in query,
+      where: fragment("?->>'inReplyTo' is null", object.data)
     )
   end
 
@@ -921,16 +948,28 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
   defp maybe_order(query, _), do: query
 
   def fetch_activities_query(recipients, opts \\ %{}) do
-    config = %{
-      skip_thread_containment: Config.get([:instance, :skip_thread_containment])
-    }
+    opts = Map.put(opts, "user", opts["user"])
+
+    instance_setting = Config.get([:instance, :skip_thread_containment])
+
+    skip =
+      if is_nil(opts["user"]) or instance_setting != :false_default do
+        instance_setting
+      else
+        opts["user"].info.skip_thread_containment
+      end
+
+    opts =
+      if !is_nil(opts["user"]) and !skip and is_nil(opts["reply_visibility"]),
+        do: Map.put(opts, "reply_visibility", "self"),
+        else: opts
 
     Activity
     |> maybe_preload_objects(opts)
     |> maybe_preload_bookmarks(opts)
     |> maybe_set_thread_muted_field(opts)
     |> maybe_order(opts)
-    |> restrict_recipients(recipients, opts["user"])
+    |> restrict_recipients(recipients, opts)
     |> restrict_tag(opts)
     |> restrict_tag_reject(opts)
     |> restrict_tag_all(opts)
@@ -944,7 +983,6 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
     |> restrict_muted(opts)
     |> restrict_media(opts)
     |> restrict_visibility(opts)
-    |> restrict_thread_visibility(opts, config)
     |> restrict_replies(opts)
     |> restrict_reblogs(opts)
     |> restrict_pinned(opts)

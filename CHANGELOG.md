@@ -76,6 +76,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Mastodon API: added `/auth/password` endpoint for password reset with rate limit.
 - Mastodon API: /api/v1/accounts/:id/statuses now supports nicknames or user id
 - Mastodon API: Improve support for the user profile custom fields
+- Mastodon API: Add support for filtering replies in public and friends timelines
 - Admin API: Return users' tags when querying reports
 - Admin API: Return avatar and display name when querying users
 - Admin API: Allow querying user by ID
@@ -85,6 +86,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Configuration: `enabled` option for `Pleroma.Emails.Mailer`, defaulting to `false`.
 - Configuration: Pleroma.Plugs.RateLimiter `bucket_name`, `params` options.
 - Configuration: `user_bio_length` and `user_name_length` options.
+- Configuration: added possibility set `skip_thread_containment` to `:false_default` in instance settings, so user setting take effect.
 - Addressable lists
 - Twitter API: added rate limit for `/api/account/password_reset` endpoint.
 - ActivityPub: Add an internal service actor for fetching ActivityPub objects.
