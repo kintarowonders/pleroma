@@ -71,8 +71,8 @@ defmodule Pleroma.Web.ActivityPub.Visibility do
 
       recipients =
         if activity_actor.follower_address in user.following,
-          do: [user.ap_id, @public, activity_actor.follower_address],
-          else: [user.ap_id, @public]
+          do: [user.ap_id, Pleroma.Constants.as_public(), activity_actor.follower_address],
+          else: [user.ap_id, Pleroma.Constants.as_public()]
 
       Enum.any?(recipients, fn recipient -> recipient in activity.recipients end)
     end
