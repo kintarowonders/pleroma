@@ -19,6 +19,7 @@ defmodule Pleroma.Object do
 
   schema "objects" do
     field(:data, :map)
+    has_one(:create_activity, Activity, on_delete: :nothing, foreign_key: :id)
 
     timestamps()
   end

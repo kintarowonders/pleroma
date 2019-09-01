@@ -10,8 +10,11 @@ defmodule Mix.Tasks.Pleroma.Benchmark do
     start_pleroma()
 
     Benchee.run(%{
-      "search" => fn ->
+      "With joined objects" => fn ->
         Pleroma.Activity.search(nil, "cofe")
+      end,
+      "With joined activities" => fn ->
+        Pleroma.Activity.search(nil, "cofe", join_on: :activities)
       end
     })
   end
