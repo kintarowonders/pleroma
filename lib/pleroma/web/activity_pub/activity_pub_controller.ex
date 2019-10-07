@@ -484,8 +484,8 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubController do
 
   Parameters:
   - (required) `file`: data of the media
-  - (optionnal) `object`: object which will be used as a base for the response
-  - (optionnal) `description`: description of the media, intended for accessibility
+  - (optional) `object`: object which will be used as a base for the response
+  - (optional) `description`: description of the media, intended for accessibility
 
   Response:
   - HTTP Code: 201 Created
