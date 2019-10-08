@@ -976,7 +976,7 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
           data
         end
 
-      Repo.insert(%Object{data: obj_data})
+      Object.insert(%Object{data: obj_data})
     end
   end
 
