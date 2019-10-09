@@ -40,27 +40,11 @@ defmodule Pleroma.Activity do
     field(:local, :boolean, default: true)
     field(:actor, :string)
     field(:recipients, {:array, :string}, default: [])
-    field(:object_ap_id, :string)
     field(:thread_muted?, :boolean, virtual: true)
     # This is a fake relation, do not use outside of with_preloaded_bookmark/get_bookmark
     has_one(:bookmark, Bookmark)
     has_many(:notifications, Notification, on_delete: :delete_all)
-
-    # Attention: this is a fake relation, don't try to preload it blindly and expect it to work!
-    # The foreign key is embedded in a jsonb field.
-    #
-    # To use it, you probably want to do an inner join and a preload:
-    #
-    # ```
-    # |> join(:inner, [activity], o in Object,
-    #      on: fragment("(?->>'id') = COALESCE((?)->'object'->> 'id', (?)->>'object')",
-    #        o.data, activity.data, activity.data))
-    # |> preload([activity, object], [object: object])
-    # ```
-    #
-    # As a convenience, Activity.with_preloaded_object() sets up an inner join and preload for the
-    # typical case.
-    has_one(:object, Object, on_delete: :nothing, foreign_key: :id)
+    belongs_to(:object, Object, foreign_key: :object_ap_id, references: :ap_id, type: :string)
 
     has_one(:expiration, ActivityExpiration, on_delete: :delete_all)
 
@@ -74,22 +58,14 @@ defmodule Pleroma.Activity do
 
   def with_joined_object(query, join_type \\ :inner) do
     join(query, join_type, [activity], o in Object,
-      on:
-        fragment(
-          "? = COALESCE(?->'object'->>'id', ?->>'object')",
-          o.ap_id,
-          activity.data,
-          activity.data
-        ),
+      on: activity.object_ap_id == o.ap_id,
       as: :object
     )
   end
 
-  def with_preloaded_object(query, join_type \\ :inner) do
+  def with_preloaded_object(query) do
     query
-    |> has_named_binding?(:object)
-    |> if(do: query, else: with_joined_object(query, join_type))
-    |> preload([activity, object: object], object: object)
+    |> preload(:object)
   end
 
   def with_preloaded_bookmark(query, %User{} = user) do
@@ -139,7 +115,7 @@ defmodule Pleroma.Activity do
   def get_by_ap_id_with_object(ap_id) do
     ap_id
     |> Queries.by_ap_id()
-    |> with_preloaded_object(:left)
+    |> preload(:object)
     |> Repo.one()
   end
 
