@@ -405,8 +405,11 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubTest do
 
   test "doesn't return blocked activities" do
     activity_one = insert(:note_activity)
+    activity_one = Activity.get_by_id(activity_one.id)
     activity_two = insert(:note_activity)
+    activity_two = Activity.get_by_id(activity_two.id)
     activity_three = insert(:note_activity)
+    activity_three = Activity.get_by_id(activity_three.id)
     user = insert(:user)
     booster = insert(:user)
     {:ok, user} = User.block(user, %{ap_id: activity_one.data["actor"]})
@@ -519,8 +522,11 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubTest do
 
   test "doesn't return muted activities" do
     activity_one = insert(:note_activity)
+    activity_one = Activity.get_by_id(activity_one.id)
     activity_two = insert(:note_activity)
+    activity_two = Activity.get_by_id(activity_two.id)
     activity_three = insert(:note_activity)
+    activity_three = Activity.get_by_id(activity_three.id)
     user = insert(:user)
     booster = insert(:user)
     {:ok, user} = User.mute(user, %User{ap_id: activity_one.data["actor"]})
@@ -927,6 +933,7 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubTest do
   describe "fetch the latest Follow" do
     test "fetches the latest Follow activity" do
       %Activity{data: %{"type" => "Follow"}} = activity = insert(:follow_activity)
+      activity = Activity.get_by_id(activity.id)
       follower = Repo.get_by(User, ap_id: activity.data["actor"])
       followed = Repo.get_by(User, ap_id: activity.data["object"])
 

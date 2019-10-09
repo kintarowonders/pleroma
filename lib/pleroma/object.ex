@@ -40,7 +40,7 @@ defmodule Pleroma.Object do
     struct
     |> cast(params, [:data])
     |> validate_required([:data])
-    |> unique_constraint(:ap_id, name: :objects_unique_apid_index)
+    |> unique_constraint(:ap_id, name: :objects_ap_id_index)
   end
 
   def get_by_id(nil), do: nil

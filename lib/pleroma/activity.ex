@@ -67,6 +67,11 @@ defmodule Pleroma.Activity do
     timestamps()
   end
 
+  def insert(cng, options \\ []) do
+    options = Keyword.put(options, :returning, true)
+    Repo.insert(cng, options)
+  end
+
   def with_joined_object(query, join_type \\ :inner) do
     join(query, join_type, [activity], o in Object,
       on:
