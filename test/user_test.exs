@@ -190,23 +190,6 @@ defmodule Pleroma.UserTest do
     refute User.following?(follower, followed)
   end
 
-  # This is a somewhat useless test.
-  # test "following a remote user will ensure a websub subscription is present" do
-  #   user = insert(:user)
-  #   {:ok, followed} = OStatus.make_user("shp@social.heldscal.la")
-
-  #   assert followed.local == false
-
-  #   {:ok, user} = User.follow(user, followed)
-  #   assert User.ap_followers(followed) in user.following
-
-  #   query = from w in WebsubClientSubscription,
-  #   where: w.topic == ^followed.info["topic"]
-  #   websub = Repo.one(query)
-
-  #   assert websub
-  # end
-
   describe "unfollow/2" do
     setup do
       setting = Pleroma.Config.get([:instance, :external_user_synchronization])
@@ -474,11 +457,6 @@ defmodule Pleroma.UserTest do
       assert user == fetched_user
     end
 
-    test "fetches an external user via ostatus if no user exists" do
-      {:ok, fetched_user} = User.get_or_fetch_by_nickname("shp@social.heldscal.la")
-      assert fetched_user.nickname == "shp@social.heldscal.la"
-    end
-
     test "returns nil if no user could be fetched" do
       {:error, fetched_user} = User.get_or_fetch_by_nickname("nonexistant@social.heldscal.la")
       assert fetched_user == "not found nonexistant@social.heldscal.la"
@@ -515,7 +493,7 @@ defmodule Pleroma.UserTest do
     user = insert(:user)
 
     assert User.ap_id(user) ==
-             Pleroma.Web.Router.Helpers.o_status_url(
+             Pleroma.Web.Router.Helpers.feed_url(
                Pleroma.Web.Endpoint,
                :feed_redirect,
                user.nickname
@@ -526,7 +504,7 @@ defmodule Pleroma.UserTest do
     user = insert(:user)
 
     assert User.ap_followers(user) ==
-             Pleroma.Web.Router.Helpers.o_status_url(
+             Pleroma.Web.Router.Helpers.feed_url(
                Pleroma.Web.Endpoint,
                :feed_redirect,
                user.nickname

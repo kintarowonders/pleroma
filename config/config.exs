@@ -59,10 +59,6 @@ scheduled_jobs =
     _ -> []
   end
 
-scheduled_jobs =
-  scheduled_jobs ++
-    [{"0 */6 * * * *", {Pleroma.Web.Websub, :refresh_subscriptions, []}}]
-
 config :pleroma, Pleroma.Scheduler,
   global: true,
   overlap: true,
@@ -243,9 +239,7 @@ config :pleroma, :instance,
   federation_incoming_replies_max_depth: 100,
   federation_reachability_timeout_days: 7,
   federation_publisher_modules: [
-    Pleroma.Web.ActivityPub.Publisher,
-    Pleroma.Web.Websub,
-    Pleroma.Web.Salmon
+    Pleroma.Web.ActivityPub.Publisher
   ],
   allow_relay: true,
   rewrite_policy: Pleroma.Web.ActivityPub.MRF.NoOpPolicy,
@@ -409,7 +403,8 @@ config :pleroma, Pleroma.Web.Metadata,
   providers: [
     Pleroma.Web.Metadata.Providers.OpenGraph,
     Pleroma.Web.Metadata.Providers.TwitterCard,
-    Pleroma.Web.Metadata.Providers.RelMe
+    Pleroma.Web.Metadata.Providers.RelMe,
+    Pleroma.Web.Metadata.Providers.Feed
   ],
   unfurl_nsfw: false
 
