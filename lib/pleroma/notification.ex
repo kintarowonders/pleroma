@@ -45,14 +45,7 @@ defmodule Pleroma.Notification do
       )
     )
     |> join(:inner, [n], activity in assoc(n, :activity))
-    |> join(:left, [n, a], object in Object,
-      on:
-        fragment(
-          "(?->>'id') = COALESCE((? -> 'object'::text) ->> 'id'::text)",
-          object.data,
-          a.data
-        )
-    )
+    |> join(:left, [n, a], object in Object, on: a.object_ap_id == object.ap_id)
     |> preload([n, a, o], activity: {a, object: o})
     |> exclude_muted(user, opts)
     |> exclude_visibility(opts)
@@ -169,14 +162,7 @@ defmodule Pleroma.Notification do
     Notification
     |> where([n], n.id in ^notification_ids)
     |> join(:inner, [n], activity in assoc(n, :activity))
-    |> join(:left, [n, a], object in Object,
-      on:
-        fragment(
-          "(?->>'id') = COALESCE((? -> 'object'::text) ->> 'id'::text)",
-          object.data,
-          a.data
-        )
-    )
+    |> join(:left, [n, a], object in Object, on: a.object_ap_id == object.ap_id)
     |> preload([n, a, o], activity: {a, object: o})
     |> Repo.all()
   end

@@ -57,14 +57,12 @@ defmodule Pleroma.Activity do
   end
 
   def with_joined_object(query, join_type \\ :inner) do
-    join(query, join_type, [activity], o in Object,
-      on: activity.object_ap_id == o.ap_id,
-      as: :object
-    )
+    join(query, join_type, [activity], assoc(activity, :object), as: :object)
   end
 
   def with_preloaded_object(query) do
     query
+    |> with_joined_object()
     |> preload(:object)
   end
 
