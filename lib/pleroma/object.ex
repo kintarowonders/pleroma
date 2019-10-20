@@ -183,7 +183,7 @@ defmodule Pleroma.Object do
 
   def increase_replies_count(ap_id) do
     Object
-    |> where([o], fragment("?->>'id' = ?::text", o.data, ^to_string(ap_id)))
+    |> where([o], fragment("? = ?", o.ap_id, ^to_string(ap_id)))
     |> update([o],
       set: [
         data:
@@ -206,7 +206,7 @@ defmodule Pleroma.Object do
 
   def decrease_replies_count(ap_id) do
     Object
-    |> where([o], fragment("?->>'id' = ?::text", o.data, ^to_string(ap_id)))
+    |> where([o], fragment("? = ?", o.ap_id, ^ap_id))
     |> update([o],
       set: [
         data:
