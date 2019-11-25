@@ -711,6 +711,7 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
     |> maybe_preload_bookmarks(opts)
     |> maybe_set_thread_muted_field(opts)
     |> restrict_blocked(opts)
+    |> restrict_filtered(opts)
     |> restrict_recipients(recipients, opts["user"])
     |> where(
       [activity],
@@ -1298,6 +1299,7 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
     |> restrict_favorited_by(opts)
     |> restrict_blocked(restrict_blocked_opts)
     |> restrict_muted(restrict_muted_opts)
+    |> restrict_filtered(opts)
     |> restrict_media(opts)
     |> restrict_visibility(opts)
     |> restrict_thread_visibility(opts, config)
@@ -1306,7 +1308,6 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
     |> restrict_pinned(opts)
     |> restrict_muted_reblogs(restrict_muted_reblogs_opts)
     |> restrict_instance(opts)
-    |> restrict_filtered(opts)
     |> Activity.restrict_deactivated_users()
     |> exclude_poll_votes(opts)
     |> exclude_visibility(opts)
