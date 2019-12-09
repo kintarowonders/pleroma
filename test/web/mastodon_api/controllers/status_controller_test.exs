@@ -1111,7 +1111,7 @@ defmodule Pleroma.Web.MastodonAPI.StatusControllerTest do
       activity: activity
     } do
       other_user = insert(:user)
-      {:ok, user} = User.block(user, other_user)
+      {:ok, _user_relationship} = User.block(user, other_user)
 
       {:ok, _} = CommonAPI.favorite(other_user, activity.id)
 
@@ -1208,7 +1208,7 @@ defmodule Pleroma.Web.MastodonAPI.StatusControllerTest do
       activity: activity
     } do
       other_user = insert(:user)
-      {:ok, user} = User.block(user, other_user)
+      {:ok, _user_relationship} = User.block(user, other_user)
 
       {:ok, _, _} = CommonAPI.repeat(activity.id, other_user)
 
