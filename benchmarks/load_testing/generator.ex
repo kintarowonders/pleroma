@@ -10,7 +10,7 @@ defmodule Pleroma.LoadTesting.Generator do
       :timer.tc(fn ->
         Task.async_stream(
            Enum.take_random(posts, count_likes),
-          fn post -> {:ok, _, _} = CommonAPI.favorite(post.id, user) end,
+          fn post -> {:ok, _, _} = CommonAPI.favorite(user, post.id) end,
           max_concurrency: 10,
           timeout: 30_000
         )
