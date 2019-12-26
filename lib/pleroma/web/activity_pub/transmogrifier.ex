@@ -404,8 +404,9 @@ defmodule Pleroma.Web.ActivityPub.Transmogrifier do
     actor = Containment.get_actor(data)
 
     data =
-      Map.put(data, "actor", actor)
-      |> fix_addressing
+      data
+      |> Map.put("actor", actor)
+      |> fix_addressing()
 
     with nil <- Activity.get_create_by_object_ap_id(object["id"]),
          {:ok, %User{} = user} <- User.get_or_fetch_by_ap_id(data["actor"]) do
@@ -602,7 +603,8 @@ defmodule Pleroma.Web.ActivityPub.Transmogrifier do
            {:casting_data,
             data |> LikeValidator.cast_data() |> Ecto.Changeset.apply_action(:insert)},
          {_, cast_data} <-
-           {:stringify_keys, ObjectValidator.stringify_keys(cast_data_sym |> Map.from_struct())},
+           {:stringify_keys,
+            cast_data_sym |> Map.from_struct() |> ObjectValidator.stringify_keys()},
          :ok <- ObjectValidator.fetch_actor_and_object(cast_data),
          {_, {:ok, cast_data}} <- {:maybe_add_context, maybe_add_context_from_object(cast_data)},
          {_, {:ok, cast_data}} <-

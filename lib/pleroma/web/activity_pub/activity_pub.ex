@@ -19,6 +19,7 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
   alias Pleroma.Web.ActivityPub.MRF
   alias Pleroma.Web.ActivityPub.Transmogrifier
   alias Pleroma.Web.ActivityPub.Utils
+  alias Pleroma.Web.CommonAPI
   alias Pleroma.Web.Streamer
   alias Pleroma.Web.WebFinger
   alias Pleroma.Workers.BackgroundWorker
@@ -366,22 +367,17 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
     end
   end
 
-  # TODO: This is weird, maybe we shouldn't check here if we can make the activity.
   def like(
         %User{ap_id: ap_id} = user,
-        %Object{data: %{"id" => _}} = object,
-        activity_id \\ nil,
-        local \\ true
+        %Object{data: %{"id" => _}} = object
       ) do
     with nil <- get_existing_like(ap_id, object),
-         like_data <- make_like_data(user, object, activity_id),
-         {:ok, activity} <- insert(like_data, local),
-         {:ok, object} <- add_like_to_object(activity, object),
-         :ok <- maybe_federate(activity) do
-      {:ok, activity, object}
+         {:ok, %Activity{} = activity} <- CommonAPI.favorite(user, object) do
+      like_object = Object.normalize(activity)
+      {:ok, activity, like_object}
     else
       %Activity{} = activity -> {:ok, activity, object}
-      error -> {:error, error}
+      e -> e
     end
   end
 

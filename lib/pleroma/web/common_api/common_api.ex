@@ -106,18 +106,28 @@ defmodule Pleroma.Web.CommonAPI do
   end
 
   @spec favorite(User.t(), binary()) :: {:ok, Activity.t()} | {:error, any()}
-  def favorite(%User{} = user, id) do
-    with {_, %Activity{object: object}} <- {:find_object, Activity.get_by_id_with_object(id)},
-         {_, {:ok, like_object, meta}} <- {:build_object, Builder.like(user, object)},
+  def favorite(%User{} = user, %Object{} = object) do
+    with {_, {:ok, like_object, meta}} <- {:build_object, Builder.like(user, object)},
          {_, {:ok, %Activity{} = activity, _meta}} <-
            {:common_pipeline,
             Pipeline.common_pipeline(like_object, Keyword.put(meta, :local, true))} do
       {:ok, activity}
     else
-      e ->
-        Logger.error("Could not favorite #{id}. Error: #{inspect(e, pretty: true)}")
-        {:error, dgettext("errors", "Could not favorite")}
+      e -> handle_favorite_error(e, object.data["id"])
     end
+  end
+
+  def favorite(%User{} = user, id) when is_binary(id) do
+    with {_, %Activity{object: object}} <- {:find_object, Activity.get_by_id_with_object(id)} do
+      favorite(user, object)
+    else
+      e -> handle_favorite_error(e, id)
+    end
+  end
+
+  defp handle_favorite_error(e, id) do
+    Logger.error("Could not favorite #{id}. Error: #{inspect(e, pretty: true)}")
+    {:error, dgettext("errors", "Could not favorite")}
   end
 
   def unfavorite(id_or_ap_id, user) do
