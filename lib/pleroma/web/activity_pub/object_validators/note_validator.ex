@@ -8,6 +8,7 @@ defmodule Pleroma.Web.ActivityPub.ObjectValidators.NoteValidator do
   alias Pleroma.Web.ActivityPub.ObjectValidators.Types
 
   import Ecto.Changeset
+  import Pleroma.Web.ActivityPub.ObjectValidators.CommonValidations
 
   @primary_key false
 
@@ -17,11 +18,11 @@ defmodule Pleroma.Web.ActivityPub.ObjectValidators.NoteValidator do
     field(:cc, {:array, :string}, default: [])
     field(:bto, {:array, :string}, default: [])
     field(:bcc, {:array, :string}, default: [])
-    # TODO: Write type
-    field(:tag, {:array, :map}, default: [])
+    field(:tag, Types.Tags, default: [])
     field(:type, :string)
-    field(:content, :string)
+    field(:content, :string, default: "")
     field(:context, :string)
+    field(:context_id, :integer)
     field(:actor, Types.ObjectID)
     field(:attributedTo, Types.ObjectID)
     field(:summary, :string)
@@ -41,7 +42,6 @@ defmodule Pleroma.Web.ActivityPub.ObjectValidators.NoteValidator do
 
     # see if needed
     field(:conversation, :string)
-    field(:context_id, :string)
   end
 
   def cast_and_validate(data) do
@@ -51,13 +51,14 @@ defmodule Pleroma.Web.ActivityPub.ObjectValidators.NoteValidator do
   end
 
   def cast_data(data) do
-    %__MODULE__{}
-    |> cast(data, __schema__(:fields))
+    cast(%__MODULE__{}, data, __schema__(:fields))
   end
 
   def validate_data(data_cng) do
     data_cng
     |> validate_inclusion(:type, ["Note"])
-    |> validate_required([:id, :actor, :to, :cc, :type, :content, :context])
+    # Note: :content is not listed as required, according to tests
+    |> validate_required([:id, :actor, :to, :cc, :type, :context])
+    |> validate_actor_presence()
   end
 end

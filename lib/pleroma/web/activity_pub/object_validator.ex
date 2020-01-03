@@ -11,19 +11,34 @@ defmodule Pleroma.Web.ActivityPub.ObjectValidator do
 
   alias Pleroma.Object
   alias Pleroma.User
-  alias Pleroma.Web.ActivityPub.ObjectValidators.LikeValidator
+  alias Pleroma.Web.ActivityPub.ObjectValidators
 
   @spec validate(map(), keyword()) :: {:ok, map(), keyword()} | {:error, any()}
   def validate(object, meta)
 
   def validate(%{"type" => "Like"} = object, meta) do
-    with {_, {:ok, object}} <-
-           {:validate_object,
-            object |> LikeValidator.cast_and_validate() |> Ecto.Changeset.apply_action(:insert)} do
-      object = stringify_keys(object |> Map.from_struct())
+    do_validate(ObjectValidators.LikeValidator, object, meta)
+  end
+
+  def validate(%{"type" => "Note"} = object, meta) do
+    do_validate(ObjectValidators.NoteValidator, object, meta)
+  end
+
+  def validate(object, meta) do
+    {:ok, object, meta}
+  end
+
+  defp do_validate(validator, object, meta) do
+    with {:ok, object} <-
+           validator
+           |> apply(:cast_and_validate, [object])
+           |> Ecto.Changeset.apply_action(:insert) do
+      object =
+        object
+        |> Map.from_struct()
+        |> stringify_keys()
+
       {:ok, object, meta}
-    else
-      e -> {:error, e}
     end
   end
 

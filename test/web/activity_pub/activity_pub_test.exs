@@ -396,7 +396,9 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubTest do
           object: %{
             "to" => ["user1", "user1", "user2"],
             "type" => "Note",
-            "content" => "testing"
+            "actor" => user.ap_id,
+            "content" => "testing",
+            "context" => "context"
           }
         })
 
@@ -1249,12 +1251,15 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubTest do
       {:ok, object} =
         object
         |> Object.change(%{
-          data: %{
-            "actor" => object.data["actor"],
-            "id" => object.data["id"],
-            "to" => [user.ap_id],
-            "type" => "Note"
-          }
+          data:
+            Map.merge(
+              object.data,
+              %{
+                "actor" => object.data["actor"],
+                "id" => object.data["id"],
+                "to" => [user.ap_id]
+              }
+            )
         })
         |> Object.update_and_set_cache()
 

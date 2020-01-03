@@ -125,21 +125,20 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
 
   def increase_poll_votes_if_vote(_create_data), do: :noop
 
-  # TODO rewrite in with style
   @spec persist(map(), keyword()) :: {:ok, Activity.t() | Object.t()}
   def persist(object, meta) do
     local = Keyword.fetch!(meta, :local)
     {recipients, _, _} = get_recipients(object)
 
-    {:ok, activity} =
-      Repo.insert(%Activity{
-        data: object,
-        local: local,
-        recipients: recipients,
-        actor: object["actor"]
-      })
-
-    {:ok, activity, meta}
+    with {:ok, activity} <-
+           Repo.insert(%Activity{
+             data: object,
+             local: local,
+             recipients: recipients,
+             actor: object["actor"]
+           }) do
+      {:ok, activity, meta}
+    end
   end
 
   def insert(map, local \\ true, fake \\ false, bypass_actor_check \\ false) when is_map(map) do
@@ -193,6 +192,9 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
 
         Pleroma.Web.RichMedia.Helpers.fetch_data_for_activity(activity)
         {:ok, activity}
+
+      {:error, error} ->
+        {:error, error}
 
       error ->
         {:error, error}
@@ -250,7 +252,9 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
     :noop
   end
 
-  def create(%{to: to, actor: actor, context: context, object: object} = params, fake \\ false) do
+  def create(params, fake \\ false)
+
+  def create(%{to: to, actor: actor, context: context, object: object} = params, fake) do
     additional = params[:additional] || %{}
     # only accept false as false value
     local = !(params[:local] == false)
@@ -277,8 +281,8 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
       {:fake, true, activity} ->
         {:ok, activity}
 
-      {:error, message} ->
-        {:error, message}
+      {:error, error} ->
+        {:error, error}
     end
   end
 
