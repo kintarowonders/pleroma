@@ -27,11 +27,9 @@ defmodule Pleroma.Web.ActivityPub.ObjectValidators.NoteValidator do
     field(:attributedTo, Types.ObjectID)
     field(:summary, :string)
     field(:published, Types.DateTime)
-    # TODO: Write type
-    field(:emoji, :map, default: %{})
+    field(:emoji, Types.Emoji, default: %{})
     field(:sensitive, :boolean, default: false)
-    # TODO: Write type
-    field(:attachment, {:array, :map}, default: [])
+    field(:attachment, Types.Attachments, default: [])
     field(:replies_count, :integer, default: 0)
     field(:like_count, :integer, default: 0)
     field(:announcement_count, :integer, default: 0)

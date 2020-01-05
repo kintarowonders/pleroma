@@ -3,14 +3,15 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 defmodule Pleroma.Web.ActivityPub.ObjectValidators.Types.Tags do
+  alias Pleroma.Web.ActivityPub.Transmogrifier
+
   use Ecto.Type
 
   def type, do: {:array, :map}
 
-  # Note: supporting binaries and maps as list elements
-  def cast(list) when is_list(list) do
-    if Enum.all?(list, &(is_map(&1) || is_binary(&1))) do
-      {:ok, list}
+  def cast(tags_list) when is_list(tags_list) do
+    if Enum.all?(tags_list, &(is_map(&1) || is_binary(&1))) do
+      {:ok, Transmogrifier.as2_tags(tags_list)}
     else
       :error
     end

@@ -30,8 +30,7 @@ defmodule Pleroma.Web.ActivityPub.ObjectValidators.LikeValidator do
   end
 
   def cast_data(data) do
-    %__MODULE__{}
-    |> cast(data, [:id, :type, :object, :actor, :context, :to, :cc])
+    cast(%__MODULE__{}, data, [:id, :type, :object, :actor, :context, :to, :cc])
   end
 
   def validate_data(data_cng) do

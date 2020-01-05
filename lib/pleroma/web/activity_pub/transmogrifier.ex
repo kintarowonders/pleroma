@@ -31,17 +31,17 @@ defmodule Pleroma.Web.ActivityPub.Transmogrifier do
   """
   def fix_object(object, options \\ []) do
     object
-    |> strip_internal_fields
-    |> fix_actor
-    |> fix_url
-    |> fix_attachments
-    |> fix_context
+    |> strip_internal_fields()
+    |> fix_actor()
+    |> fix_url()
+    |> fix_attachments()
+    |> fix_context()
     |> fix_in_reply_to(options)
-    |> fix_emoji
-    |> fix_tag
-    |> fix_content_map
-    |> fix_addressing
-    |> fix_summary
+    |> fix_emoji()
+    |> fix_tag()
+    |> fix_content_map()
+    |> fix_addressing()
+    |> fix_summary()
     |> fix_type(options)
   end
 
@@ -931,17 +931,17 @@ defmodule Pleroma.Web.ActivityPub.Transmogrifier do
   # Prepares the object of an outgoing create activity.
   def prepare_object(object) do
     object
-    |> set_sensitive
-    |> add_hashtags
-    |> add_mention_tags
-    |> add_emoji_tags
-    |> add_attributed_to
-    |> prepare_attachments
-    |> set_conversation
-    |> set_reply_to_uri
-    |> strip_internal_fields
-    |> strip_internal_tags
-    |> set_type
+    |> set_sensitive()
+    |> add_hashtags()
+    |> add_mention_tags()
+    |> add_emoji_tags()
+    |> add_attributed_to()
+    |> prepare_attachments()
+    |> set_conversation()
+    |> set_reply_to_uri()
+    |> strip_internal_fields()
+    |> strip_internal_tags()
+    |> set_type()
   end
 
   #  @doc
@@ -955,7 +955,7 @@ defmodule Pleroma.Web.ActivityPub.Transmogrifier do
       object_id
       |> Object.normalize()
       |> Map.get(:data)
-      |> prepare_object
+      |> prepare_object()
 
     data =
       data
@@ -975,12 +975,12 @@ defmodule Pleroma.Web.ActivityPub.Transmogrifier do
       if Visibility.is_private?(object) && object.data["actor"] == ap_id do
         data |> Map.put("object", object |> Map.get(:data) |> prepare_object)
       else
-        data |> maybe_fix_object_url
+        maybe_fix_object_url(data)
       end
 
     data =
       data
-      |> strip_internal_fields
+      |> strip_internal_fields()
       |> Map.merge(Utils.make_json_ld_header())
       |> Map.delete("bcc")
 
@@ -1028,8 +1028,8 @@ defmodule Pleroma.Web.ActivityPub.Transmogrifier do
   def prepare_outgoing(%{"type" => _type} = data) do
     data =
       data
-      |> strip_internal_fields
-      |> maybe_fix_object_url
+      |> strip_internal_fields()
+      |> maybe_fix_object_url()
       |> Map.merge(Utils.make_json_ld_header())
 
     {:ok, data}
@@ -1054,9 +1054,15 @@ defmodule Pleroma.Web.ActivityPub.Transmogrifier do
   def maybe_fix_object_url(data), do: data
 
   def add_hashtags(object) do
-    tags =
-      (object["tag"] || [])
-      |> Enum.map(fn
+    tags = as2_tags(object["tag"] || [])
+    Map.put(object, "tag", tags)
+  end
+
+  @doc "Converts `tag` list to ActivityStreams 2.0 format"
+  def as2_tags(tags) when is_list(tags) do
+    Enum.map(
+      tags,
+      fn
         # Expand internal representation tags into AS2 tags.
         tag when is_binary(tag) ->
           %{
@@ -1068,9 +1074,8 @@ defmodule Pleroma.Web.ActivityPub.Transmogrifier do
         # Do not process tags which are already AS2 tag objects.
         tag when is_map(tag) ->
           tag
-      end)
-
-    Map.put(object, "tag", tags)
+      end
+    )
   end
 
   def add_mention_tags(object) do
