@@ -51,28 +51,33 @@ defmodule Pleroma.Web.PleromaAPI.PleromaAPIControllerTest do
     assert object.data["reaction_count"] == 0
   end
 
-  test "GET /api/v1/pleroma/statuses/:id/emoji_reactions_by", %{conn: conn} do
-    user = insert(:user)
-    other_user = insert(:user)
+  describe "GET /api/v1/pleroma/statuses/:id/emoji_reactions_by" do
+    test "it returns the list of users who reacted", %{conn: conn} do
+      user = insert(:user)
+      other_user = insert(:user)
+      doomed_user = insert(:user)
 
-    {:ok, activity} = CommonAPI.post(user, %{"status" => "#cofe"})
+      {:ok, activity} = CommonAPI.post(user, %{"status" => "#cofe"})
 
-    result =
-      conn
-      |> get("/api/v1/pleroma/statuses/#{activity.id}/emoji_reactions_by")
-      |> json_response(200)
+      result =
+        conn
+        |> get("/api/v1/pleroma/statuses/#{activity.id}/emoji_reactions_by")
+        |> json_response(200)
 
-    assert result == []
+      assert result == []
 
-    {:ok, _, _} = CommonAPI.react_with_emoji(activity.id, other_user, "🎅")
+      {:ok, _, _} = CommonAPI.react_with_emoji(activity.id, other_user, "🎅")
+      {:ok, _, _} = CommonAPI.react_with_emoji(activity.id, doomed_user, "🎅")
+      User.perform(:delete, doomed_user)
 
-    result =
-      conn
-      |> get("/api/v1/pleroma/statuses/#{activity.id}/emoji_reactions_by")
-      |> json_response(200)
+      result =
+        conn
+        |> get("/api/v1/pleroma/statuses/#{activity.id}/emoji_reactions_by")
+        |> json_response(200)
 
-    [%{"emoji" => "🎅", "count" => 1, "accounts" => [represented_user]}] = result
-    assert represented_user["id"] == other_user.id
+      [%{"emoji" => "🎅", "count" => 1, "accounts" => [represented_user]}] = result
+      assert represented_user["id"] == other_user.id
+    end
   end
 
   test "/api/v1/pleroma/conversations/:id" do
