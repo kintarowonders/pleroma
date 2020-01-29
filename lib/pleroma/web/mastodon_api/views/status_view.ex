@@ -259,8 +259,9 @@ defmodule Pleroma.Web.MastodonAPI.StatusView do
           users =
             Enum.map(users, &User.get_cached_by_ap_id/1)
             |> Enum.filter(& &1)
+            |> Enum.map(& &1.id)
 
-          %{emoji: emoji, count: length(users)}
+          %{emoji: emoji, count: length(users), account_ids: users}
         end)
       else
         _ -> []
