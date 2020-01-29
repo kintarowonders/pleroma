@@ -685,6 +685,23 @@ defmodule Pleroma.User do
     |> Repo.all()
   end
 
+  def get_all_cached_by_ap_id(ap_ids) do
+    %{found: found, missing: missing} =
+      ap_ids
+      |> Enum.reduce(%{found: [], missing: []}, fn id, %{found: found, missing: missing} ->
+        case Cachex.get(:user_cache, "ap_id:#{id}") do
+          {:ok, nil} -> %{found: found, missing: [id | missing]}
+          {:ok, user} -> %{found: [user | found], missing: missing}
+        end
+      end)
+
+    missing = get_all_by_ap_id(missing)
+
+    Enum.each(missing, &set_cache/1)
+
+    found ++ missing
+  end
+
   def get_all_by_ids(ids) do
     from(u in __MODULE__, where: u.id in ^ids)
     |> Repo.all()

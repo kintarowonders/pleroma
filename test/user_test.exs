@@ -1822,4 +1822,19 @@ defmodule Pleroma.UserTest do
       assert result.email_notifications["digest"] == false
     end
   end
+
+  describe "get_all_cached_by_ap_id/2" do
+    test "it returns a list of users" do
+      user = insert(:user)
+      other_user = insert(:user)
+      third_user = insert(:user)
+
+      User.set_cache(user)
+
+      results = User.get_all_cached_by_ap_id([user.ap_id, other_user.ap_id, third_user.ap_id])
+      assert user in results
+      assert other_user in results
+      assert third_user in results
+    end
+  end
 end
