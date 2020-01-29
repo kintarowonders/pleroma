@@ -49,8 +49,8 @@ defmodule Pleroma.Web.PleromaAPI.PleromaAPIController do
         emoji_reactions
         |> Enum.map(fn [emoji, users] ->
           users =
-            Enum.map(users, &User.get_cached_by_ap_id/1)
-            |> Enum.filter(& &1)
+            users
+            |> User.get_all_cached_by_ap_id()
 
           %{
             emoji: emoji,

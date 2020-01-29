@@ -42,10 +42,15 @@ defmodule Pleroma.Web.MastodonAPI.StatusViewTest do
     activity = Repo.get(Activity, activity.id)
     status = StatusView.render("show.json", activity: activity)
 
-    assert status[:pleroma][:emoji_reactions] == [
-             %{emoji: "☕", count: 2, account_ids: [other_user.id, user.id]},
-             %{emoji: "🍵", count: 1, account_ids: [third_user.id]}
-           ]
+    assert [
+             %{emoji: "☕", count: 2, account_ids: cofe_users},
+             %{emoji: "🍵", count: 1, account_ids: tee_users}
+           ] = status[:pleroma][:emoji_reactions]
+
+    assert length(cofe_users) == 2
+    assert user.id in cofe_users
+    assert other_user.id in cofe_users
+    assert [third_user.id] == tee_users
   end
 
   test "loads and returns the direct conversation id when given the `with_direct_conversation_id` option" do
