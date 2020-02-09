@@ -869,6 +869,8 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubTest do
     test "adds an emoji reaction activity to the db" do
       user = insert(:user)
       reactor = insert(:user)
+      third_user = insert(:user)
+      fourth_user = insert(:user)
       {:ok, activity} = CommonAPI.post(user, %{"status" => "YASSSS queen slay"})
       assert object = Object.normalize(activity)
 
@@ -877,13 +879,27 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubTest do
       assert reaction_activity
 
       assert reaction_activity.data["actor"] == reactor.ap_id
-      assert reaction_activity.data["type"] == "EmojiReaction"
+      assert reaction_activity.data["type"] == "EmojiReact"
       assert reaction_activity.data["content"] == "🔥"
       assert reaction_activity.data["object"] == object.data["id"]
       assert reaction_activity.data["to"] == [User.ap_followers(reactor), activity.data["actor"]]
       assert reaction_activity.data["context"] == object.data["context"]
       assert object.data["reaction_count"] == 1
-      assert object.data["reactions"]["🔥"] == [reactor.ap_id]
+      assert object.data["reactions"] == [["🔥", [reactor.ap_id]]]
+
+      {:ok, _reaction_activity, object} = ActivityPub.react_with_emoji(third_user, object, "☕")
+
+      assert object.data["reaction_count"] == 2
+      assert object.data["reactions"] == [["🔥", [reactor.ap_id]], ["☕", [third_user.ap_id]]]
+
+      {:ok, _reaction_activity, object} = ActivityPub.react_with_emoji(fourth_user, object, "🔥")
+
+      assert object.data["reaction_count"] == 3
+
+      assert object.data["reactions"] == [
+               ["🔥", [fourth_user.ap_id, reactor.ap_id]],
+               ["☕", [third_user.ap_id]]
+             ]
     end
   end
 
@@ -921,7 +937,7 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubTest do
 
       object = Object.get_by_ap_id(object.data["id"])
       assert object.data["reaction_count"] == 0
-      assert object.data["reactions"] == %{}
+      assert object.data["reactions"] == []
     end
   end
 
@@ -1147,6 +1163,23 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubTest do
     test "creates an undo activity for the last follow" do
       follower = insert(:user)
       followed = insert(:user)
+
+      {:ok, follow_activity} = ActivityPub.follow(follower, followed)
+      {:ok, activity} = ActivityPub.unfollow(follower, followed)
+
+      assert activity.data["type"] == "Undo"
+      assert activity.data["actor"] == follower.ap_id
+
+      embedded_object = activity.data["object"]
+      assert is_map(embedded_object)
+      assert embedded_object["type"] == "Follow"
+      assert embedded_object["object"] == followed.ap_id
+      assert embedded_object["id"] == follow_activity.data["id"]
+    end
+
+    test "creates an undo activity for a pending follow request" do
+      follower = insert(:user)
+      followed = insert(:user, %{locked: true})
 
       {:ok, follow_activity} = ActivityPub.follow(follower, followed)
       {:ok, activity} = ActivityPub.unfollow(follower, followed)

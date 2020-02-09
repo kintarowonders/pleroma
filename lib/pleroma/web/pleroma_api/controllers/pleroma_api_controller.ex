@@ -22,7 +22,14 @@ defmodule Pleroma.Web.PleromaAPI.PleromaAPIController do
 
   plug(
     OAuthScopesPlug,
-    %{scopes: ["read:statuses"]} when action in [:conversation, :conversation_statuses]
+    %{scopes: ["read:statuses"]}
+    when action in [:conversation, :conversation_statuses]
+  )
+
+  plug(
+    OAuthScopesPlug,
+    %{scopes: ["write:statuses"]}
+    when action in [:react_with_emoji, :unreact_with_emoji]
   )
 
   plug(
@@ -36,21 +43,29 @@ defmodule Pleroma.Web.PleromaAPI.PleromaAPIController do
 
   def emoji_reactions_by(%{assigns: %{user: user}} = conn, %{"id" => activity_id}) do
     with %Activity{} = activity <- Activity.get_by_id_with_object(activity_id),
-         %Object{data: %{"reactions" => emoji_reactions}} <- Object.normalize(activity) do
+         %Object{data: %{"reactions" => emoji_reactions}} when is_list(emoji_reactions) <-
+           Object.normalize(activity) do
       reactions =
         emoji_reactions
-        |> Enum.map(fn {emoji, users} ->
-          users = Enum.map(users, &User.get_cached_by_ap_id/1)
-          {emoji, AccountView.render("index.json", %{users: users, for: user, as: :user})}
+        |> Enum.map(fn [emoji, user_ap_ids] ->
+          users =
+            Enum.map(user_ap_ids, &User.get_cached_by_ap_id/1)
+            |> Enum.filter(& &1)
+
+          %{
+            emoji: emoji,
+            count: length(users),
+            accounts: AccountView.render("index.json", %{users: users, for: user, as: :user}),
+            reacted: !!(user && user.ap_id in user_ap_ids)
+          }
         end)
-        |> Enum.into(%{})
 
       conn
       |> json(reactions)
     else
       _e ->
         conn
-        |> json(%{})
+        |> json([])
     end
   end
 

@@ -67,7 +67,7 @@ config :pleroma, Pleroma.Scheduler,
 
 config :pleroma, Pleroma.Captcha,
   enabled: true,
-  seconds_valid: 3000,
+  seconds_valid: 300,
   method: Pleroma.Captcha.Native
 
 config :pleroma, Pleroma.Captcha.Kocaptcha, endpoint: "https://captcha.kotobank.ch"
@@ -108,15 +108,10 @@ config :pleroma, Pleroma.Uploaders.S3,
   streaming_enabled: true,
   public_endpoint: "https://s3.amazonaws.com"
 
-config :pleroma, Pleroma.Uploaders.MDII,
-  cgi: "https://mdii.sakura.ne.jp/mdii-post.cgi",
-  files: "https://mdii.sakura.ne.jp"
-
 config :pleroma, :emoji,
   shortcode_globs: ["/emoji/custom/**/*.png"],
   pack_extensions: [".png", ".gif"],
   groups: [
-    # Put groups that have higher priority than defaults here. Example in `docs/config/custom_emoji.md`
     Custom: ["/emoji/*.png", "/emoji/**/*.png"]
   ],
   default_manifest: "https://git.pleroma.social/pleroma/emoji-index/raw/master/index.json",
@@ -269,7 +264,6 @@ config :pleroma, :instance,
   remote_post_retention_days: 90,
   skip_thread_containment: true,
   limit_to_local_content: :unauthenticated,
-  dynamic_configuration: false,
   user_bio_length: 5000,
   user_name_length: 100,
   max_account_fields: 10,
@@ -277,7 +271,8 @@ config :pleroma, :instance,
   account_field_name_length: 512,
   account_field_value_length: 2048,
   external_user_synchronization: true,
-  extended_nickname_format: true
+  extended_nickname_format: true,
+  cleanup_attachments: false
 
 config :pleroma, :feed,
   post_title: %{
@@ -431,14 +426,6 @@ config :pleroma, Pleroma.Web.Metadata,
   ],
   unfurl_nsfw: false
 
-config :pleroma, :suggestions,
-  enabled: false,
-  third_party_engine:
-    "http://vinayaka.distsn.org/cgi-bin/vinayaka-user-match-suggestions-api.cgi?{{host}}+{{user}}",
-  timeout: 300_000,
-  limit: 40,
-  web: "https://vinayaka.distsn.org"
-
 config :pleroma, :http_security,
   enabled: true,
   sts: false,
@@ -506,7 +493,8 @@ config :pleroma, Oban,
     mailer: 10,
     transmogrifier: 20,
     scheduled_activities: 10,
-    background: 5
+    background: 5,
+    attachments_cleanup: 5
   ]
 
 config :pleroma, :workers,
@@ -521,7 +509,6 @@ config :pleroma, :fetch_initial_posts,
 
 config :auto_linker,
   opts: [
-    scheme: true,
     extra: true,
     # TODO: Set to :no_scheme when it works properly
     validate_tld: true,
@@ -565,7 +552,7 @@ config :ueberauth,
 
 config :pleroma,
        :auth,
-       enforce_oauth_admin_scope_usage: false,
+       enforce_oauth_admin_scope_usage: true,
        oauth_consumer_strategies: oauth_consumer_strategies
 
 config :pleroma, Pleroma.Emails.Mailer, adapter: Swoosh.Adapters.Sendmail, enabled: false
@@ -609,11 +596,21 @@ config :pleroma, :env, Mix.env()
 config :http_signatures,
   adapter: Pleroma.Signature
 
-config :pleroma, :rate_limit, authentication: {60_000, 15}
+config :pleroma, :rate_limit,
+  authentication: {60_000, 15},
+  search: [{1000, 10}, {1000, 30}],
+  app_account_creation: {1_800_000, 25},
+  relations_actions: {10_000, 10},
+  relation_id_action: {60_000, 2},
+  statuses_actions: {10_000, 15},
+  status_id_action: {60_000, 3},
+  password_reset: {1_800_000, 5},
+  account_confirmation_resend: {8_640_000, 5},
+  ap_routes: {60_000, 15}
 
 config :pleroma, Pleroma.ActivityExpiration, enabled: true
 
-config :pleroma, Pleroma.Plugs.RemoteIp, enabled: false
+config :pleroma, Pleroma.Plugs.RemoteIp, enabled: true
 
 config :pleroma, :static_fe, enabled: false
 
@@ -622,6 +619,8 @@ config :pleroma, :web_cache_ttl,
   activity_pub_question: 30_000
 
 config :pleroma, :modules, runtime_dir: "instance/modules"
+
+config :pleroma, configurable_from_database: false
 
 config :swarm, node_blacklist: [~r/myhtml_.*$/]
 # Import environment specific config. This must remain at the bottom

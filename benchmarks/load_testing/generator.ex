@@ -142,6 +142,48 @@ defmodule Pleroma.LoadTesting.Generator do
     CommonAPI.post(Enum.random(users), post)
   end
 
+  def generate_power_intervals(opts \\ []) do
+    count = Keyword.get(opts, :count, 20)
+    power = Keyword.get(opts, :power, 2)
+    IO.puts("Generating #{count} intervals for a power #{power} series...")
+    counts = Enum.map(1..count, fn n -> :math.pow(n, power) end)
+    sum = Enum.sum(counts)
+
+    densities =
+      Enum.map(counts, fn c ->
+        c / sum
+      end)
+
+    densities
+    |> Enum.reduce(0, fn density, acc ->
+      if acc == 0 do
+        [{0, density}]
+      else
+        [{_, lower} | _] = acc
+        [{lower, lower + density} | acc]
+      end
+    end)
+    |> Enum.reverse()
+  end
+
+  def generate_tagged_activities(opts \\ []) do
+    tag_count = Keyword.get(opts, :tag_count, 20)
+    users = Keyword.get(opts, :users, Repo.all(User))
+    activity_count = Keyword.get(opts, :count, 200_000)
+
+    intervals = generate_power_intervals(count: tag_count)
+
+    IO.puts(
+      "Generating #{activity_count} activities using #{tag_count} different tags of format `tag_n`, starting at tag_0"
+    )
+
+    Enum.each(1..activity_count, fn _ ->
+      random = :rand.uniform()
+      i = Enum.find_index(intervals, fn {lower, upper} -> lower <= random && upper > random end)
+      CommonAPI.post(Enum.random(users), %{"status" => "a post with the tag #tag_#{i}"})
+    end)
+  end
+
   defp do_generate_activity_with_mention(user, users) do
     mentions_cnt = Enum.random([2, 3, 4, 5])
     with_user = Enum.random([true, false])

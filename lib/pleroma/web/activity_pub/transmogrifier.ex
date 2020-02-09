@@ -584,7 +584,7 @@ defmodule Pleroma.Web.ActivityPub.Transmogrifier do
     "star" => "⭐"
   }
 
-  @doc "Rewrite misskey likes into EmojiReactions"
+  @doc "Rewrite misskey likes into EmojiReacts"
   def handle_incoming(
         %{
           "type" => "Like",
@@ -593,7 +593,7 @@ defmodule Pleroma.Web.ActivityPub.Transmogrifier do
         options
       ) do
     data
-    |> Map.put("type", "EmojiReaction")
+    |> Map.put("type", "EmojiReact")
     |> Map.put("content", @misskey_reactions[reaction] || reaction)
     |> handle_incoming(options)
   end
@@ -619,7 +619,7 @@ defmodule Pleroma.Web.ActivityPub.Transmogrifier do
 
   def handle_incoming(
         %{
-          "type" => "EmojiReaction",
+          "type" => "EmojiReact",
           "object" => object_id,
           "actor" => _actor,
           "id" => id,
@@ -667,24 +667,8 @@ defmodule Pleroma.Web.ActivityPub.Transmogrifier do
     with %User{ap_id: ^actor_id} = actor <- User.get_cached_by_ap_id(object["id"]) do
       {:ok, new_user_data} = ActivityPub.user_data_from_user_object(object)
 
-      locked = new_user_data[:locked] || false
-      attachment = get_in(new_user_data, [:source_data, "attachment"]) || []
-      invisible = new_user_data[:invisible] || false
-
-      fields =
-        attachment
-        |> Enum.filter(fn %{"type" => t} -> t == "PropertyValue" end)
-        |> Enum.map(fn fields -> Map.take(fields, ["name", "value"]) end)
-
-      update_data =
-        new_user_data
-        |> Map.take([:avatar, :banner, :bio, :name, :also_known_as])
-        |> Map.put(:fields, fields)
-        |> Map.put(:locked, locked)
-        |> Map.put(:invisible, invisible)
-
       actor
-      |> User.upgrade_changeset(update_data, true)
+      |> User.upgrade_changeset(new_user_data, true)
       |> User.update_and_set_cache()
 
       ActivityPub.update(%{
@@ -776,7 +760,7 @@ defmodule Pleroma.Web.ActivityPub.Transmogrifier do
   def handle_incoming(
         %{
           "type" => "Undo",
-          "object" => %{"type" => "EmojiReaction", "id" => reaction_activity_id},
+          "object" => %{"type" => "EmojiReact", "id" => reaction_activity_id},
           "actor" => _actor,
           "id" => id
         } = data,

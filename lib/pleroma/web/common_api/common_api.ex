@@ -88,9 +88,13 @@ defmodule Pleroma.Web.CommonAPI do
   def repeat(id_or_ap_id, user, params \\ %{}) do
     with %Activity{} = activity <- get_by_id_or_ap_id(id_or_ap_id),
          object <- Object.normalize(activity),
-         nil <- Utils.get_existing_announce(user.ap_id, object),
+         announce_activity <- Utils.get_existing_announce(user.ap_id, object),
          public <- public_announce?(object, params) do
-      ActivityPub.announce(user, object, nil, true, public)
+      if announce_activity do
+        {:ok, announce_activity, object}
+      else
+        ActivityPub.announce(user, object, nil, true, public)
+      end
     else
       _ -> {:error, dgettext("errors", "Could not repeat")}
     end
@@ -325,8 +329,9 @@ defmodule Pleroma.Web.CommonAPI do
     with %Activity{
            actor: ^user_ap_id,
            data: %{"type" => "Create"},
-           object: %Object{data: %{"type" => "Note"}}
+           object: %Object{data: %{"type" => object_type}}
          } = activity <- get_by_id_or_ap_id(id_or_ap_id),
+         true <- object_type in ["Note", "Article", "Question"],
          true <- Visibility.is_public?(activity),
          {:ok, _user} <- User.add_pinnned_activity(user, activity) do
       {:ok, activity}

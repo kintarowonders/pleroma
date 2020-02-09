@@ -308,23 +308,16 @@ defmodule Pleroma.Web.ActivityPub.Utils do
 
   def make_emoji_reaction_data(user, object, emoji, activity_id) do
     make_like_data(user, object, activity_id)
-    |> Map.put("type", "EmojiReaction")
+    |> Map.put("type", "EmojiReact")
     |> Map.put("content", emoji)
   end
 
-  @spec update_element_in_object(String.t(), list(any), Object.t()) ::
+  @spec update_element_in_object(String.t(), list(any), Object.t(), integer() | nil) ::
           {:ok, Object.t()} | {:error, Ecto.Changeset.t()}
-  def update_element_in_object(property, element, object) do
+  def update_element_in_object(property, element, object, count \\ nil) do
     length =
-      if is_map(element) do
-        element
-        |> Map.values()
-        |> List.flatten()
-        |> length()
-      else
-        element
-        |> length()
-      end
+      count ||
+        length(element)
 
     data =
       Map.merge(
@@ -344,29 +337,60 @@ defmodule Pleroma.Web.ActivityPub.Utils do
         %Activity{data: %{"content" => emoji, "actor" => actor}},
         object
       ) do
-    reactions = object.data["reactions"] || %{}
-    emoji_actors = reactions[emoji] || []
-    new_emoji_actors = [actor | emoji_actors] |> Enum.uniq()
-    new_reactions = Map.put(reactions, emoji, new_emoji_actors)
-    update_element_in_object("reaction", new_reactions, object)
+    reactions = get_cached_emoji_reactions(object)
+
+    new_reactions =
+      case Enum.find_index(reactions, fn [candidate, _] -> emoji == candidate end) do
+        nil ->
+          reactions ++ [[emoji, [actor]]]
+
+        index ->
+          List.update_at(
+            reactions,
+            index,
+            fn [emoji, users] -> [emoji, Enum.uniq([actor | users])] end
+          )
+      end
+
+    count = emoji_count(new_reactions)
+
+    update_element_in_object("reaction", new_reactions, object, count)
+  end
+
+  def emoji_count(reactions_list) do
+    Enum.reduce(reactions_list, 0, fn [_, users], acc -> acc + length(users) end)
   end
 
   def remove_emoji_reaction_from_object(
         %Activity{data: %{"content" => emoji, "actor" => actor}},
         object
       ) do
-    reactions = object.data["reactions"] || %{}
-    emoji_actors = reactions[emoji] || []
-    new_emoji_actors = List.delete(emoji_actors, actor)
+    reactions = get_cached_emoji_reactions(object)
 
     new_reactions =
-      if new_emoji_actors == [] do
-        Map.delete(reactions, emoji)
-      else
-        Map.put(reactions, emoji, new_emoji_actors)
+      case Enum.find_index(reactions, fn [candidate, _] -> emoji == candidate end) do
+        nil ->
+          reactions
+
+        index ->
+          List.update_at(
+            reactions,
+            index,
+            fn [emoji, users] -> [emoji, List.delete(users, actor)] end
+          )
+          |> Enum.reject(fn [_, users] -> Enum.empty?(users) end)
       end
 
-    update_element_in_object("reaction", new_reactions, object)
+    count = emoji_count(new_reactions)
+    update_element_in_object("reaction", new_reactions, object, count)
+  end
+
+  def get_cached_emoji_reactions(object) do
+    if is_list(object.data["reactions"]) do
+      object.data["reactions"]
+    else
+      []
+    end
   end
 
   @spec add_like_to_object(Activity.t(), Object.t()) ::
@@ -466,10 +490,19 @@ defmodule Pleroma.Web.ActivityPub.Utils do
     |> Repo.one()
   end
 
+  def fetch_latest_undo(%User{ap_id: ap_id}) do
+    "Undo"
+    |> Activity.Queries.by_type()
+    |> where(actor: ^ap_id)
+    |> order_by([activity], fragment("? desc nulls last", activity.id))
+    |> limit(1)
+    |> Repo.one()
+  end
+
   def get_latest_reaction(internal_activity_id, %{ap_id: ap_id}, emoji) do
     %{data: %{"object" => object_ap_id}} = Activity.get_by_id(internal_activity_id)
 
-    "EmojiReaction"
+    "EmojiReact"
     |> Activity.Queries.by_type()
     |> where(actor: ^ap_id)
     |> where([activity], fragment("?->>'content' = ?", activity.data, ^emoji))

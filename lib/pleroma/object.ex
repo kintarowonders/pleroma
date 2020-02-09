@@ -18,6 +18,10 @@ defmodule Pleroma.Object do
 
   require Logger
 
+  @type t() :: %__MODULE__{}
+
+  @derive {Jason.Encoder, only: [:data]}
+
   schema "objects" do
     field(:data, :map)
 
@@ -94,6 +98,20 @@ defmodule Pleroma.Object do
 
   def get_by_ap_id(ap_id) do
     Repo.one(from(object in Object, where: fragment("(?)->>'id' = ?", object.data, ^ap_id)))
+  end
+
+  @doc """
+  Get a single attachment by it's name and href
+  """
+  @spec get_attachment_by_name_and_href(String.t(), String.t()) :: Object.t() | nil
+  def get_attachment_by_name_and_href(name, href) do
+    query =
+      from(o in Object,
+        where: fragment("(?)->>'name' = ?", o.data, ^name),
+        where: fragment("(?)->>'href' = ?", o.data, ^href)
+      )
+
+    Repo.one(query)
   end
 
   defp warn_on_no_object_preloaded(ap_id) do
@@ -184,6 +202,13 @@ defmodule Pleroma.Object do
          deleted_activity = Activity.delete_all_by_object_ap_id(id),
          {:ok, true} <- Cachex.del(:object_cache, "object:#{id}"),
          {:ok, _} <- Cachex.del(:web_resp_cache, URI.parse(id).path) do
+      with true <- Pleroma.Config.get([:instance, :cleanup_attachments]) do
+        {:ok, _} =
+          Pleroma.Workers.AttachmentsCleanupWorker.enqueue("cleanup_attachments", %{
+            "object" => object
+          })
+      end
+
       {:ok, object, deleted_activity}
     end
   end

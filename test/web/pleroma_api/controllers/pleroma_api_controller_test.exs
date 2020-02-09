@@ -23,10 +23,16 @@ defmodule Pleroma.Web.PleromaAPI.PleromaAPIControllerTest do
     result =
       conn
       |> assign(:user, other_user)
+      |> assign(:token, insert(:oauth_token, user: other_user, scopes: ["write:statuses"]))
       |> post("/api/v1/pleroma/statuses/#{activity.id}/react_with_emoji", %{"emoji" => "☕"})
+      |> json_response(200)
 
-    assert %{"id" => id} = json_response(result, 200)
+    assert %{"id" => id} = result
     assert to_string(activity.id) == id
+
+    assert result["pleroma"]["emoji_reactions"] == [
+             %{"emoji" => "☕", "count" => 1, "reacted" => true}
+           ]
   end
 
   test "POST /api/v1/pleroma/statuses/:id/unreact_with_emoji", %{conn: conn} do
@@ -39,6 +45,7 @@ defmodule Pleroma.Web.PleromaAPI.PleromaAPIControllerTest do
     result =
       conn
       |> assign(:user, other_user)
+      |> assign(:token, insert(:oauth_token, user: other_user, scopes: ["write:statuses"]))
       |> post("/api/v1/pleroma/statuses/#{activity.id}/unreact_with_emoji", %{"emoji" => "☕"})
 
     assert %{"id" => id} = json_response(result, 200)
@@ -52,6 +59,7 @@ defmodule Pleroma.Web.PleromaAPI.PleromaAPIControllerTest do
   test "GET /api/v1/pleroma/statuses/:id/emoji_reactions_by", %{conn: conn} do
     user = insert(:user)
     other_user = insert(:user)
+    doomed_user = insert(:user)
 
     {:ok, activity} = CommonAPI.post(user, %{"status" => "#cofe"})
 
@@ -60,22 +68,37 @@ defmodule Pleroma.Web.PleromaAPI.PleromaAPIControllerTest do
       |> get("/api/v1/pleroma/statuses/#{activity.id}/emoji_reactions_by")
       |> json_response(200)
 
-    assert result == %{}
+    assert result == []
 
     {:ok, _, _} = CommonAPI.react_with_emoji(activity.id, other_user, "🎅")
+    {:ok, _, _} = CommonAPI.react_with_emoji(activity.id, doomed_user, "🎅")
+
+    User.perform(:delete, doomed_user)
 
     result =
       conn
       |> get("/api/v1/pleroma/statuses/#{activity.id}/emoji_reactions_by")
       |> json_response(200)
 
-    [represented_user] = result["🎅"]
+    [%{"emoji" => "🎅", "count" => 1, "accounts" => [represented_user], "reacted" => false}] =
+      result
+
     assert represented_user["id"] == other_user.id
+
+    result =
+      conn
+      |> assign(:user, other_user)
+      |> assign(:token, insert(:oauth_token, user: other_user, scopes: ["read:statuses"]))
+      |> get("/api/v1/pleroma/statuses/#{activity.id}/emoji_reactions_by")
+      |> json_response(200)
+
+    assert [%{"emoji" => "🎅", "count" => 1, "accounts" => [_represented_user], "reacted" => true}] =
+             result
   end
 
-  test "/api/v1/pleroma/conversations/:id", %{conn: conn} do
+  test "/api/v1/pleroma/conversations/:id" do
     user = insert(:user)
-    other_user = insert(:user)
+    %{user: other_user, conn: conn} = oauth_access(["read:statuses"])
 
     {:ok, _activity} =
       CommonAPI.post(user, %{"status" => "Hi @#{other_user.nickname}!", "visibility" => "direct"})
@@ -84,16 +107,15 @@ defmodule Pleroma.Web.PleromaAPI.PleromaAPIControllerTest do
 
     result =
       conn
-      |> assign(:user, other_user)
       |> get("/api/v1/pleroma/conversations/#{participation.id}")
       |> json_response(200)
 
     assert result["id"] == participation.id |> to_string()
   end
 
-  test "/api/v1/pleroma/conversations/:id/statuses", %{conn: conn} do
+  test "/api/v1/pleroma/conversations/:id/statuses" do
     user = insert(:user)
-    other_user = insert(:user)
+    %{user: other_user, conn: conn} = oauth_access(["read:statuses"])
     third_user = insert(:user)
 
     {:ok, _activity} =
@@ -113,7 +135,6 @@ defmodule Pleroma.Web.PleromaAPI.PleromaAPIControllerTest do
 
     result =
       conn
-      |> assign(:user, other_user)
       |> get("/api/v1/pleroma/conversations/#{participation.id}/statuses")
       |> json_response(200)
 
@@ -124,8 +145,8 @@ defmodule Pleroma.Web.PleromaAPI.PleromaAPIControllerTest do
     assert [%{"id" => ^id_one}, %{"id" => ^id_two}] = result
   end
 
-  test "PATCH /api/v1/pleroma/conversations/:id", %{conn: conn} do
-    user = insert(:user)
+  test "PATCH /api/v1/pleroma/conversations/:id" do
+    %{user: user, conn: conn} = oauth_access(["write:conversations"])
     other_user = insert(:user)
 
     {:ok, _activity} = CommonAPI.post(user, %{"status" => "Hi", "visibility" => "direct"})
@@ -140,7 +161,6 @@ defmodule Pleroma.Web.PleromaAPI.PleromaAPIControllerTest do
 
     result =
       conn
-      |> assign(:user, user)
       |> patch("/api/v1/pleroma/conversations/#{participation.id}", %{
         "recipients" => [user.id, other_user.id]
       })
@@ -155,9 +175,9 @@ defmodule Pleroma.Web.PleromaAPI.PleromaAPIControllerTest do
     assert other_user in participation.recipients
   end
 
-  test "POST /api/v1/pleroma/conversations/read", %{conn: conn} do
+  test "POST /api/v1/pleroma/conversations/read" do
     user = insert(:user)
-    other_user = insert(:user)
+    %{user: other_user, conn: conn} = oauth_access(["write:notifications"])
 
     {:ok, _activity} =
       CommonAPI.post(user, %{"status" => "Hi @#{other_user.nickname}", "visibility" => "direct"})
@@ -172,7 +192,6 @@ defmodule Pleroma.Web.PleromaAPI.PleromaAPIControllerTest do
 
     [%{"unread" => false}, %{"unread" => false}] =
       conn
-      |> assign(:user, other_user)
       |> post("/api/v1/pleroma/conversations/read", %{})
       |> json_response(200)
 
@@ -183,8 +202,9 @@ defmodule Pleroma.Web.PleromaAPI.PleromaAPIControllerTest do
   end
 
   describe "POST /api/v1/pleroma/notifications/read" do
-    test "it marks a single notification as read", %{conn: conn} do
-      user1 = insert(:user)
+    setup do: oauth_access(["write:notifications"])
+
+    test "it marks a single notification as read", %{user: user1, conn: conn} do
       user2 = insert(:user)
       {:ok, activity1} = CommonAPI.post(user2, %{"status" => "hi @#{user1.nickname}"})
       {:ok, activity2} = CommonAPI.post(user2, %{"status" => "hi @#{user1.nickname}"})
@@ -193,7 +213,6 @@ defmodule Pleroma.Web.PleromaAPI.PleromaAPIControllerTest do
 
       response =
         conn
-        |> assign(:user, user1)
         |> post("/api/v1/pleroma/notifications/read", %{"id" => "#{notification1.id}"})
         |> json_response(:ok)
 
@@ -202,8 +221,7 @@ defmodule Pleroma.Web.PleromaAPI.PleromaAPIControllerTest do
       refute Repo.get(Notification, notification2.id).seen
     end
 
-    test "it marks multiple notifications as read", %{conn: conn} do
-      user1 = insert(:user)
+    test "it marks multiple notifications as read", %{user: user1, conn: conn} do
       user2 = insert(:user)
       {:ok, _activity1} = CommonAPI.post(user2, %{"status" => "hi @#{user1.nickname}"})
       {:ok, _activity2} = CommonAPI.post(user2, %{"status" => "hi @#{user1.nickname}"})
@@ -213,7 +231,6 @@ defmodule Pleroma.Web.PleromaAPI.PleromaAPIControllerTest do
 
       [response1, response2] =
         conn
-        |> assign(:user, user1)
         |> post("/api/v1/pleroma/notifications/read", %{"max_id" => "#{notification2.id}"})
         |> json_response(:ok)
 
@@ -225,11 +242,8 @@ defmodule Pleroma.Web.PleromaAPI.PleromaAPIControllerTest do
     end
 
     test "it returns error when notification not found", %{conn: conn} do
-      user1 = insert(:user)
-
       response =
         conn
-        |> assign(:user, user1)
         |> post("/api/v1/pleroma/notifications/read", %{"id" => "22222222222222"})
         |> json_response(:bad_request)
 
