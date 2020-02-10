@@ -380,7 +380,7 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
         %Object{data: %{"id" => _}} = object
       ) do
     with nil <- get_existing_like(ap_id, object),
-         {:ok, %Activity{} = activity} <- CommonAPI.favorite(user, object) do
+         {:ok, %Activity{} = activity, _} <- CommonAPI.favorite(user, object) do
       like_object = Object.normalize(activity)
       {:ok, activity, like_object}
     else

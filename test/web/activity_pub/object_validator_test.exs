@@ -65,7 +65,7 @@ defmodule Pleroma.Web.ActivityPub.ObjectValidatorTest do
       user: user,
       post_activity: post_activity
     } do
-      _like = CommonAPI.favorite(user, post_activity.id)
+      {:ok, _like, _} = CommonAPI.favorite(user, post_activity.id)
 
       refute LikeValidator.cast_and_validate(valid_like).valid?
     end

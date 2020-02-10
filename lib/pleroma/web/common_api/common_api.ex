@@ -111,13 +111,19 @@ defmodule Pleroma.Web.CommonAPI do
 
   @spec favorite(User.t(), binary()) :: {:ok, Activity.t()} | {:error, any()}
   def favorite(%User{} = user, %Object{} = object) do
-    with {_, {:ok, like_object, meta}} <- {:build_object, Builder.like(user, object)},
-         {_, {:ok, %Activity{} = activity, _meta}} <-
-           {:common_pipeline,
-            Pipeline.common_pipeline(like_object, Keyword.put(meta, :local, true))} do
-      {:ok, activity}
+    like_activity = Utils.get_existing_like(user.ap_id, object)
+
+    if like_activity do
+      {:ok, like_activity, object}
     else
-      e -> handle_favorite_error(e, object.data["id"])
+      with {_, {:ok, like_object, meta}} <- {:build_object, Builder.like(user, object)},
+           {_, {:ok, %Activity{} = activity, _meta}} <-
+             {:common_pipeline,
+              Pipeline.common_pipeline(like_object, Keyword.put(meta, :local, true))} do
+        {:ok, activity, Object.normalize(activity)}
+      else
+        e -> handle_favorite_error(e, object.data["id"])
+      end
     end
   end
 

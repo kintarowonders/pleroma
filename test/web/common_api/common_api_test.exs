@@ -14,7 +14,6 @@ defmodule Pleroma.Web.CommonAPITest do
   alias Pleroma.Web.CommonAPI
 
   import Pleroma.Factory
-  import ExUnit.CaptureLog
 
   require Pleroma.Constants
 
@@ -284,7 +283,7 @@ defmodule Pleroma.Web.CommonAPITest do
 
       {:ok, post_activity} = CommonAPI.post(other_user, %{"status" => "cofe"})
 
-      {:ok, %Activity{data: data}} = CommonAPI.favorite(user, post_activity.id)
+      {:ok, %Activity{data: data}, _} = CommonAPI.favorite(user, post_activity.id)
       assert data["type"] == "Like"
       assert data["actor"] == user.ap_id
       assert data["object"] == post_activity.data["object"]
