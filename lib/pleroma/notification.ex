@@ -289,12 +289,17 @@ defmodule Pleroma.Notification do
     end
   end
 
+  @spec create_notifications(Activity.t()) :: {:ok, [Notification.t()] | []}
   def create_notifications(%Activity{data: %{"to" => _, "type" => "Create"}} = activity) do
     object = Object.normalize(activity)
 
     unless object && object.data["type"] == "Answer" do
-      users = get_notified_from_activity(activity)
-      notifications = Enum.map(users, fn user -> create_notification(activity, user) end)
+      notifications =
+        activity
+        |> get_notified_from_activity()
+        |> Enum.map(&create_notification(activity, &1))
+        |> Enum.reject(&is_nil(&1))
+
       {:ok, notifications}
     else
       {:ok, []}
@@ -307,6 +312,7 @@ defmodule Pleroma.Notification do
       activity
       |> get_notified_from_activity()
       |> Enum.map(&create_notification(activity, &1))
+      |> Enum.reject(&is_nil(&1))
 
     {:ok, notifications}
   end
