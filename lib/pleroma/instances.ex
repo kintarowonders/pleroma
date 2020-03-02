@@ -1,5 +1,5 @@
 # Pleroma: A lightweight social networking server
-# Copyright © 2017-2019 Pleroma Authors <https://pleroma.social/>
+# Copyright © 2017-2020 Pleroma Authors <https://pleroma.social/>
 # SPDX-License-Identifier: AGPL-3.0-only
 
 defmodule Pleroma.Instances do
@@ -35,6 +35,35 @@ defmodule Pleroma.Instances do
       URI.parse(url_or_host).host
     else
       url_or_host
+    end
+  end
+
+  # unsure if the favicon should be grabbed at the /
+  def get_cached_favicon(instance_url) when is_binary(instance_url) do
+    Cachex.fetch!(:instances_cache, instance_url, fn _ -> get_favicon(instance_url) end)
+  end
+
+  def get_cached_favicon(_instance_url) do
+    nil
+  end
+
+  def get_favicon(instance_url) when is_binary(instance_url) do
+    try do
+      with {:ok, %Tesla.Env{body: html}} <-
+             Pleroma.HTTP.get(instance_url, [{:Accept, "text/html"}]),
+           favicon_rel <-
+             html
+             |> Floki.parse_document!()
+             |> Floki.attribute("link[rel=icon]", "href")
+             |> List.first(),
+           favicon_url <- URI.merge(URI.parse(instance_url), favicon_rel) |> to_string(),
+           true <- is_binary(favicon_url) do
+        favicon_url
+      else
+        _ -> nil
+      end
+    rescue
+      _ -> nil
     end
   end
 end

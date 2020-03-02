@@ -73,7 +73,8 @@ defmodule Pleroma.Web.MastodonAPI.AccountViewTest do
       },
       pleroma: %{
         background_image: "https://example.com/images/asuka_hospital.png",
-        favicon: nil,
+        favicon:
+          "https://shitposter.club/plugins/Qvitter/img/gnusocial-favicons/favicon-16x16.png",
         confirmation_pending: false,
         tags: [],
         is_admin: false,
@@ -144,7 +145,8 @@ defmodule Pleroma.Web.MastodonAPI.AccountViewTest do
       },
       pleroma: %{
         background_image: nil,
-        favicon: nil,
+        favicon:
+          "https://shitposter.club/plugins/Qvitter/img/gnusocial-favicons/favicon-16x16.png",
         confirmation_pending: false,
         tags: [],
         is_admin: false,
@@ -324,7 +326,8 @@ defmodule Pleroma.Web.MastodonAPI.AccountViewTest do
       },
       pleroma: %{
         background_image: nil,
-        favicon: nil,
+        favicon:
+          "https://shitposter.club/plugins/Qvitter/img/gnusocial-favicons/favicon-16x16.png",
         confirmation_pending: false,
         tags: [],
         is_admin: false,

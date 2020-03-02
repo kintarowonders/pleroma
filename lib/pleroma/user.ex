@@ -2046,35 +2046,4 @@ defmodule Pleroma.User do
     |> validate_required([:invisible])
     |> update_and_set_cache()
   end
-
-  # unsure if the favicon should be grabbed at the /
-  def get_cached_favicon(%User{} = user) do
-    key = "favicon:#{user.ap_id}"
-    Cachex.fetch!(:user_cache, key, fn _ -> get_favicon(user) end)
-  end
-
-  def get_cached_favicon(_user) do
-    nil
-  end
-
-  def get_favicon(user) do
-    try do
-      with url <- user.ap_id,
-           true <- is_binary(url),
-           {:ok, %Tesla.Env{body: html}} <- Pleroma.HTTP.get(url),
-           favicon_rel <-
-             html
-             |> Floki.parse_document!()
-             |> Floki.attribute("link[rel=icon]", "href")
-             |> List.first(),
-           favicon_url <- URI.merge(URI.parse(url), favicon_rel) |> to_string(),
-           true <- is_binary(favicon_url) do
-        favicon_url
-      else
-        _ -> nil
-      end
-    rescue
-      _ -> nil
-    end
-  end
 end
