@@ -38,7 +38,6 @@ defmodule Pleroma.Instances do
     end
   end
 
-  # unsure if the favicon should be grabbed at the /
   def get_cached_favicon(instance_url) when is_binary(instance_url) do
     Cachex.fetch!(:instances_cache, instance_url, fn _ -> get_favicon(instance_url) end)
   end
