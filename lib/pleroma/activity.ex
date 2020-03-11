@@ -330,4 +330,7 @@ defmodule Pleroma.Activity do
       _ -> nil
     end
   end
+
+  def local_only?(%Activity{data: %{"local_only" => true}}), do: true
+  def local_only?(_), do: false
 end

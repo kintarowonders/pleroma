@@ -699,4 +699,116 @@ defmodule Pleroma.Web.CommonAPITest do
       assert Visibility.get_visibility(activity) == "private"
     end
   end
+
+  describe "with `local_only` enabled" do
+    alias Pleroma.Web.ActivityPub.Utils
+    import Mock
+
+    test "delete" do
+      user = insert(:user)
+
+      {:ok, %Activity{id: activity_id}} =
+        CommonAPI.post(user, %{"status" => "#2hu #2HU", "local_only" => true})
+
+      assert {:ok,
+              %Activity{data: %{"local_only" => true, "deleted_activity_id" => ^activity_id}}} =
+               CommonAPI.delete(activity_id, user)
+    end
+
+    test "repeat and unrepeat" do
+      user = insert(:user)
+      other_user = insert(:user)
+
+      {:ok, %Activity{id: activity_id}} =
+        CommonAPI.post(other_user, %{"status" => "cofe", "local_only" => true})
+
+      with_mock Utils, [:passthrough], maybe_federate: fn _ -> :ok end do
+        assert {:ok, _, _} = CommonAPI.repeat(activity_id, user)
+        refute called(Utils.maybe_federate(:_))
+      end
+    end
+
+    test "unrepeat" do
+      user = insert(:user)
+      other_user = insert(:user)
+
+      {:ok, %Activity{id: activity_id}} =
+        CommonAPI.post(other_user, %{"status" => "cofe", "local_only" => true})
+
+      assert {:ok, _, _} = CommonAPI.repeat(activity_id, user)
+
+      with_mock Utils, [:passthrough], maybe_federate: fn _ -> :ok end do
+        assert {:ok, _, _} = CommonAPI.unrepeat(activity_id, user)
+        refute called(Utils.maybe_federate(:_))
+      end
+    end
+
+    test "favorite" do
+      user = insert(:user)
+      other_user = insert(:user)
+
+      {:ok, activity} = CommonAPI.post(other_user, %{"status" => "cofe", "local_only" => true})
+
+      with_mock Utils, [:passthrough], maybe_federate: fn _ -> :ok end do
+        {:ok, %Activity{}, _} = CommonAPI.favorite(activity.id, user)
+        refute called(Utils.maybe_federate(:_))
+      end
+    end
+
+    test "unfavorite" do
+      user = insert(:user)
+      other_user = insert(:user)
+
+      {:ok, activity} = CommonAPI.post(other_user, %{"status" => "cofe", "local_only" => true})
+
+      {:ok, %Activity{}, _} = CommonAPI.favorite(activity.id, user)
+
+      with_mock Utils, [:passthrough], maybe_federate: fn _ -> :ok end do
+        {:ok, %Activity{}, _, _} = CommonAPI.unfavorite(activity.id, user)
+        refute called(Utils.maybe_federate(:_))
+      end
+    end
+
+    test "react_with_emoji" do
+      user = insert(:user)
+      other_user = insert(:user)
+      {:ok, activity} = CommonAPI.post(other_user, %{"status" => "cofe", "local_only" => true})
+
+      with_mock Utils, [:passthrough], maybe_federate: fn _ -> :ok end do
+        {:ok, _reaction, _} = CommonAPI.react_with_emoji(activity.id, user, "👍")
+        refute called(Utils.maybe_federate(:_))
+      end
+    end
+
+    test "unreact_with_emoji" do
+      user = insert(:user)
+      other_user = insert(:user)
+      {:ok, activity} = CommonAPI.post(other_user, %{"status" => "cofe", "local_only" => true})
+
+      {:ok, _reaction, _} = CommonAPI.react_with_emoji(activity.id, user, "👍")
+
+      with_mock Utils, [:passthrough], maybe_federate: fn _ -> :ok end do
+        {:ok, _unreaction, _} = CommonAPI.unreact_with_emoji(activity.id, user, "👍")
+        refute called(Utils.maybe_federate(:_))
+      end
+    end
+
+    test "vote" do
+      user = insert(:user)
+      other_user = insert(:user)
+
+      {:ok, activity} =
+        CommonAPI.post(user, %{
+          "status" => "Am I cute?",
+          "local_only" => true,
+          "poll" => %{"options" => ["Yes", "No"], "expires_in" => 20}
+        })
+
+      object = Object.normalize(activity)
+
+      {:ok, answer_activities, _} = CommonAPI.vote(other_user, object, [0])
+
+      assert [%{data: %{"local_only" => true}}] = answer_activities
+    end
+  end
 end
