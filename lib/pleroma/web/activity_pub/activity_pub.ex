@@ -346,10 +346,11 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
     with local <- Keyword.get(options, :local, true),
          activity_id <- Keyword.get(options, :activity_id, nil),
          true <- Pleroma.Emoji.is_unicode_emoji?(emoji),
-         reaction_data <- make_emoji_reaction_data(user, object, emoji, activity_id),
+         reaction_data <-
+           make_emoji_reaction_data(user, object, emoji, activity_id) |> put_local_only(options),
          {:ok, activity} <- insert(reaction_data, local),
          {:ok, object} <- add_emoji_reaction_to_object(activity, object) do
-      unless options[:local_only], do: maybe_federate(activity)
+      maybe_federate(activity)
       {:ok, activity, object}
     else
       false -> {:error, false}
@@ -372,10 +373,11 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
          user_ap_id <- user.ap_id,
          %Activity{actor: ^user_ap_id} = reaction_activity <- Activity.get_by_ap_id(reaction_id),
          object <- Object.normalize(reaction_activity),
-         unreact_data <- make_undo_data(user, reaction_activity, activity_id),
+         unreact_data <-
+           make_undo_data(user, reaction_activity, activity_id) |> put_local_only(options),
          {:ok, activity} <- insert(unreact_data, local),
          {:ok, object} <- remove_emoji_reaction_from_object(reaction_activity, object) do
-      unless options[:local_only], do: maybe_federate(activity)
+      maybe_federate(activity)
       {:ok, activity, object}
     else
       {:error, error} -> Repo.rollback(error)
@@ -391,16 +393,14 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
   end
 
   defp do_like(%User{ap_id: ap_id} = user, %Object{data: %{"id" => _}} = object, options) do
-    options =
-      options
-      |> Keyword.put_new(:local, true)
-      |> Keyword.put_new(:local_only, false)
+    options = Keyword.put_new(options, :local, true)
 
     with nil <- get_existing_like(ap_id, object),
-         like_data <- make_like_data(user, object, options[:activity_id]),
+         like_data <-
+           make_like_data(user, object, options[:activity_id]) |> put_local_only(options),
          {:ok, activity} <- insert(like_data, options[:local]),
          {:ok, object} <- add_like_to_object(activity, object) do
-      unless options[:local_only], do: maybe_federate(activity)
+      maybe_federate(activity)
       {:ok, activity, object}
     else
       %Activity{} = activity -> {:ok, activity, object}
@@ -417,17 +417,16 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
   end
 
   defp do_unlike(actor, object, options) do
-    options =
-      options
-      |> Keyword.put_new(:local, true)
-      |> Keyword.put_new(:local_only, false)
+    options = Keyword.put_new(options, :local, true)
 
     with %Activity{} = like_activity <- get_existing_like(actor.ap_id, object),
-         unlike_data <- make_unlike_data(actor, like_activity, options[:activity_id]),
+         unlike_data <-
+           make_unlike_data(actor, like_activity, options[:activity_id])
+           |> put_local_only(options),
          {:ok, unlike_activity} <- insert(unlike_data, options[:local]),
          {:ok, _activity} <- Repo.delete(like_activity),
          {:ok, object} <- remove_like_from_object(like_activity, object) do
-      unless options[:local_only], do: maybe_federate(unlike_activity)
+      maybe_federate(unlike_activity)
       {:ok, unlike_activity, like_activity, object}
     else
       nil -> {:ok, object}
@@ -448,14 +447,14 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
       options
       |> Keyword.put_new(:local, true)
       |> Keyword.put_new(:public, true)
-      |> Keyword.put_new(:local_only, false)
 
     with true <- is_announceable?(object, user, options[:public]),
          announce_data <-
-           make_announce_data(user, object, options[:activity_id], options[:public]),
+           make_announce_data(user, object, options[:activity_id], options[:public])
+           |> put_local_only(options),
          {:ok, activity} <- insert(announce_data, options[:local]),
          {:ok, object} <- add_announce_to_object(activity, object) do
-      unless options[:local_only], do: maybe_federate(activity)
+      maybe_federate(activity)
       {:ok, activity, object}
     else
       false -> {:error, false}
@@ -472,17 +471,16 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
   end
 
   defp do_unannounce(actor, object, options) do
-    options =
-      options
-      |> Keyword.put_new(:local, true)
-      |> Keyword.put_new(:local_only, false)
+    options = Keyword.put_new(options, :local, true)
 
     with %Activity{} = announce_activity <- get_existing_announce(actor.ap_id, object),
-         unannounce_data <- make_unannounce_data(actor, announce_activity, options[:activity_id]),
+         unannounce_data <-
+           make_unannounce_data(actor, announce_activity, options[:activity_id])
+           |> put_local_only(options),
          {:ok, unannounce_activity} <- insert(unannounce_data, options[:local]),
          {:ok, _activity} <- Repo.delete(announce_activity),
          {:ok, object} <- remove_announce_from_object(announce_activity, object) do
-      unless options[:local_only], do: maybe_federate(unannounce_activity)
+      maybe_federate(unannounce_activity)
       {:ok, unannounce_activity, object}
     else
       nil -> {:ok, object}
@@ -1550,5 +1548,10 @@ defmodule Pleroma.Web.ActivityPub.ActivityPub do
     |> restrict_type(%{"type" => "Create"})
     |> restrict_visibility(%{visibility: "direct"})
     |> order_by([activity], asc: activity.id)
+  end
+
+  defp put_local_only(data, opts) do
+    local_only = Keyword.get(opts, :local_only, false)
+    Map.put(data, "local_only", local_only)
   end
 end

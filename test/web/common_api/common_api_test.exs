@@ -701,9 +701,6 @@ defmodule Pleroma.Web.CommonAPITest do
   end
 
   describe "with `local_only` enabled" do
-    alias Pleroma.Web.ActivityPub.Utils
-    import Mock
-
     test "delete" do
       user = insert(:user)
 
@@ -722,10 +719,8 @@ defmodule Pleroma.Web.CommonAPITest do
       {:ok, %Activity{id: activity_id}} =
         CommonAPI.post(other_user, %{"status" => "cofe", "local_only" => true})
 
-      with_mock Utils, [:passthrough], maybe_federate: fn _ -> :ok end do
-        assert {:ok, _, _} = CommonAPI.repeat(activity_id, user)
-        refute called(Utils.maybe_federate(:_))
-      end
+      assert {:ok, %Activity{data: %{"type" => "Announce", "local_only" => true}}, _} =
+               CommonAPI.repeat(activity_id, user)
     end
 
     test "unrepeat" do
@@ -737,10 +732,8 @@ defmodule Pleroma.Web.CommonAPITest do
 
       assert {:ok, _, _} = CommonAPI.repeat(activity_id, user)
 
-      with_mock Utils, [:passthrough], maybe_federate: fn _ -> :ok end do
-        assert {:ok, _, _} = CommonAPI.unrepeat(activity_id, user)
-        refute called(Utils.maybe_federate(:_))
-      end
+      assert {:ok, %Activity{data: %{"type" => "Undo", "local_only" => true}}, _} =
+               CommonAPI.unrepeat(activity_id, user)
     end
 
     test "favorite" do
@@ -749,10 +742,8 @@ defmodule Pleroma.Web.CommonAPITest do
 
       {:ok, activity} = CommonAPI.post(other_user, %{"status" => "cofe", "local_only" => true})
 
-      with_mock Utils, [:passthrough], maybe_federate: fn _ -> :ok end do
-        {:ok, %Activity{}, _} = CommonAPI.favorite(activity.id, user)
-        refute called(Utils.maybe_federate(:_))
-      end
+      assert {:ok, %Activity{data: %{"type" => "Like", "local_only" => true}}, _} =
+               CommonAPI.favorite(activity.id, user)
     end
 
     test "unfavorite" do
@@ -763,10 +754,8 @@ defmodule Pleroma.Web.CommonAPITest do
 
       {:ok, %Activity{}, _} = CommonAPI.favorite(activity.id, user)
 
-      with_mock Utils, [:passthrough], maybe_federate: fn _ -> :ok end do
-        {:ok, %Activity{}, _, _} = CommonAPI.unfavorite(activity.id, user)
-        refute called(Utils.maybe_federate(:_))
-      end
+      assert {:ok, %Activity{data: %{"type" => "Undo", "local_only" => true}}, _, _} =
+               CommonAPI.unfavorite(activity.id, user)
     end
 
     test "react_with_emoji" do
@@ -774,10 +763,8 @@ defmodule Pleroma.Web.CommonAPITest do
       other_user = insert(:user)
       {:ok, activity} = CommonAPI.post(other_user, %{"status" => "cofe", "local_only" => true})
 
-      with_mock Utils, [:passthrough], maybe_federate: fn _ -> :ok end do
-        {:ok, _reaction, _} = CommonAPI.react_with_emoji(activity.id, user, "👍")
-        refute called(Utils.maybe_federate(:_))
-      end
+      assert {:ok, %Activity{data: %{"type" => "EmojiReact", "local_only" => true}}, _} =
+               CommonAPI.react_with_emoji(activity.id, user, "👍")
     end
 
     test "unreact_with_emoji" do
@@ -787,10 +774,8 @@ defmodule Pleroma.Web.CommonAPITest do
 
       {:ok, _reaction, _} = CommonAPI.react_with_emoji(activity.id, user, "👍")
 
-      with_mock Utils, [:passthrough], maybe_federate: fn _ -> :ok end do
-        {:ok, _unreaction, _} = CommonAPI.unreact_with_emoji(activity.id, user, "👍")
-        refute called(Utils.maybe_federate(:_))
-      end
+      assert {:ok, %Activity{data: %{"type" => "Undo", "local_only" => true}}, _} =
+               CommonAPI.unreact_with_emoji(activity.id, user, "👍")
     end
 
     test "vote" do
