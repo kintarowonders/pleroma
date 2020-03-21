@@ -62,9 +62,12 @@ defmodule Pleroma.ConfigDB do
   @spec get_by_params(map()) :: ConfigDB.t() | nil
   def get_by_params(params), do: Repo.get_by(ConfigDB, params)
 
-  @spec changeset(ConfigDB.t(), map()) :: Changeset.t()
-  def changeset(config, params \\ %{}) do
-    params = Map.put(params, :value, transform(params[:value]))
+  @spec changeset(ConfigDB.t(), map(), boolean()) :: Changeset.t()
+  def changeset(config, params \\ %{}, transform? \\ true) do
+    params =
+      if transform?,
+        do: Map.put(params, :value, transform(params[:value])),
+        else: params
 
     config
     |> cast(params, [:key, :group, :value])
@@ -72,17 +75,17 @@ defmodule Pleroma.ConfigDB do
     |> unique_constraint(:key, name: :config_group_key_index)
   end
 
-  @spec create(map()) :: {:ok, ConfigDB.t()} | {:error, Changeset.t()}
-  def create(params) do
+  @spec create(map(), boolean()) :: {:ok, ConfigDB.t()} | {:error, Changeset.t()}
+  def create(params, transform? \\ true) do
     %ConfigDB{}
-    |> changeset(params)
+    |> changeset(params, transform?)
     |> Repo.insert()
   end
 
-  @spec update(ConfigDB.t(), map()) :: {:ok, ConfigDB.t()} | {:error, Changeset.t()}
-  def update(%ConfigDB{} = config, %{value: value}) do
+  @spec update(ConfigDB.t(), map(), boolean()) :: {:ok, ConfigDB.t()} | {:error, Changeset.t()}
+  def update(%ConfigDB{} = config, %{value: value}, transform? \\ true) do
     config
-    |> changeset(%{value: value})
+    |> changeset(%{value: value}, transform?)
     |> Repo.update()
   end
 
@@ -199,7 +202,9 @@ defmodule Pleroma.ConfigDB do
     end)
   end
 
-  @spec delete(map()) :: {:ok, ConfigDB.t()} | {:error, Changeset.t()}
+  @spec delete(ConfigDB.t() | map()) :: {:ok, ConfigDB.t()} | {:error, Changeset.t()}
+  def delete(%ConfigDB{} = config), do: Repo.delete(config)
+
   def delete(params) do
     search_opts = Map.delete(params, :subkeys)
 

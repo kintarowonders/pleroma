@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [unreleased]
 ### Changed
 - **Breaking:** BBCode and Markdown formatters will no longer return any `\n` and only use `<br/>` for newlines
+- Configuration: `rewrite_policy` renamed to `policies` and moved from `instance` to `mrf` group. Old config namespace is deprecated.
+- Configuration: `mrf_transparency` renamed to `transparency` and moved from `instance` to `mrf` group. Old config namespace is deprecated.
+- Configuration: `mrf_transparency_exclusions` renamed to `transparency_exclusions` and moved from `instance` to `mrf` group. Old config namespace is deprecated.
 
 ### Removed
 - **Breaking:** removed `with_move` parameter from notifications timeline.

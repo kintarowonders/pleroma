@@ -41,7 +41,7 @@ defmodule Pleroma.Web.Nodeinfo.NodeinfoController do
       |> Enum.map(fn u -> u.ap_id end)
 
     federation_response =
-      if Config.get([:instance, :mrf_transparency]) do
+      if Config.get([:mrf, :transparency]) do
         {:ok, data} = MRF.describe()
 
         data

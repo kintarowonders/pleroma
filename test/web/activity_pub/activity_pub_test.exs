@@ -1396,8 +1396,6 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubTest do
   end
 
   describe "deletion" do
-    setup do: clear_config([:instance, :rewrite_policy])
-
     test "it reverts deletion on error" do
       note = insert(:note_activity)
       object = Object.normalize(note)
@@ -1520,7 +1518,7 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubTest do
     end
 
     test "it passes delete activity through MRF before deleting the object" do
-      Pleroma.Config.put([:instance, :rewrite_policy], Pleroma.Web.ActivityPub.MRF.DropPolicy)
+      clear_config([:mrf, :policies], Pleroma.Web.ActivityPub.MRF.DropPolicy)
 
       note = insert(:note_activity)
       object = Object.normalize(note)
