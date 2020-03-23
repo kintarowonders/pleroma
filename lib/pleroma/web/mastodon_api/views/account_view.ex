@@ -198,6 +198,18 @@ defmodule Pleroma.Web.MastodonAPI.AccountView do
         relationships: opts[:relationships]
       })
 
+    raw_bio =
+      cond do
+        is_binary(user.raw_bio) ->
+          user.raw_bio
+
+        is_binary(user.bio) ->
+          user.bio |> String.replace(~r(<br */?>), "\n") |> Pleroma.HTML.strip_tags()
+
+        true ->
+          ""
+      end
+
     %{
       id: to_string(user.id),
       username: username_from_nickname(user.nickname),
@@ -218,7 +230,7 @@ defmodule Pleroma.Web.MastodonAPI.AccountView do
       fields: user.fields,
       bot: bot,
       source: %{
-        note: (user.bio || "") |> String.replace(~r(<br */?>), "\n") |> Pleroma.HTML.strip_tags(),
+        note: raw_bio,
         sensitive: false,
         fields: user.raw_fields,
         pleroma: %{

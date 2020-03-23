@@ -162,6 +162,7 @@ defmodule Pleroma.Web.MastodonAPI.AccountController do
       end)
       |> add_if_present(params, "display_name", :name)
       |> add_if_present(params, "note", :bio)
+      |> add_if_present(params, "note", :raw_bio)
       |> add_if_present(params, "avatar", :avatar)
       |> add_if_present(params, "header", :banner)
       |> add_if_present(params, "pleroma_background_image", :background)
