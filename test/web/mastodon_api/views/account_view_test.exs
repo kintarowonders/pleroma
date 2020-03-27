@@ -43,6 +43,7 @@ defmodule Pleroma.Web.MastodonAPI.AccountViewTest do
         name: ":karjalanpiirakka: shp",
         bio:
           "<script src=\"invalid-html\"></script><span>valid html</span>. a<br>b<br/>c<br >d<br />f",
+        raw_bio: "valid html. a\nb\nc\nd\nf",
         inserted_at: ~N[2017-08-15 15:47:06.597036]
       })
 

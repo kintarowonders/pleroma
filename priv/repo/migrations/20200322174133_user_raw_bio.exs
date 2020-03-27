@@ -3,7 +3,7 @@ defmodule Pleroma.Repo.Migrations.UserRawBio do
 
   def change do
     alter table(:users) do
-      add_if_not_exists(:raw_bio, :text, default: nil)
+      add_if_not_exists(:raw_bio, :text)
     end
   end
 end
