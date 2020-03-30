@@ -283,7 +283,7 @@ defmodule Pleroma.Web.PleromaAPI.EmojiAPIController do
     with {:ok, names} <- Pack.import_from_filesystem() do
       json(conn, names)
     else
-      {:error, :not_writable} ->
+      {:error, :no_read_write} ->
         conn
         |> put_status(:internal_server_error)
         |> json(%{error: "Error: emoji pack directory must be writable"})
