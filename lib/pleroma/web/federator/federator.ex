@@ -80,9 +80,9 @@ defmodule Pleroma.Web.Federator do
         Logger.debug("Already had #{params["id"]}")
         :error
 
-      _e ->
+      e ->
         # Just drop those for now
-        Logger.debug("Unhandled activity")
+        Logger.debug("Unhandled activity, #{inspect(e)}")
         Logger.debug(Jason.encode!(params, pretty: true))
         :error
     end
