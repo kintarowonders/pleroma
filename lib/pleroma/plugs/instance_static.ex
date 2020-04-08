@@ -10,17 +10,6 @@ defmodule Pleroma.Plugs.InstanceStatic do
   """
   @behaviour Plug
 
-  def file_path(path) do
-    instance_path =
-      Path.join(Pleroma.Config.get([:instance, :static_dir], "instance/static/"), path)
-
-    if File.exists?(instance_path) do
-      instance_path
-    else
-      Path.join(Application.app_dir(:pleroma, "priv/static/"), path)
-    end
-  end
-
   @only ~w(index.html robots.txt static emoji packs sounds images instance favicon.png sw.js
   sw-pleroma.js)
 
@@ -38,22 +27,28 @@ defmodule Pleroma.Plugs.InstanceStatic do
       call_static(
         conn,
         opts,
-        unquote(at),
-        Pleroma.Config.get([:instance, :static_dir], "instance/static")
+        unquote(at)
       )
     end
   end
 
-  def call(conn, _) do
-    conn
-  end
+  def call(conn, _opts), do: conn
 
-  defp call_static(conn, opts, at, from) do
-    opts =
-      opts
-      |> Map.put(:from, from)
-      |> Map.put(:at, at)
+  defp call_static(conn, opts, at) do
+    instance_static_path = Pleroma.Config.get([:instance, :static_dir], "instance/static")
+    opts = %{opts | at: at, from: instance_static_path}
 
-    Plug.Static.call(conn, opts)
+    # try to serve static file from frontend-specific directory
+    # if it fails, conn returned from Plug.Static.call/2 remains the same as before
+    # and we fallback to try to serve file from instance static directory
+    with %{"name" => name, "ref" => ref} <- Pleroma.Config.get([:frontends, :primary]),
+         opts2 = %{opts | from: Path.join([instance_static_path, "frontends", name, ref])},
+         conn2 = Plug.Static.call(conn, opts2),
+         true <- conn2 !== conn do
+      conn2
+    else
+      _ ->
+        Plug.Static.call(conn, opts)
+    end
   end
 end

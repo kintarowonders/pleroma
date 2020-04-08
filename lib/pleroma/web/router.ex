@@ -637,15 +637,10 @@ defmodule Pleroma.Web.Router do
 
     post("/auth/password", MastodonAPI.AuthController, :password_reset)
 
-    get("/web/*path", MastoFEController, :index)
-  end
-
-  pipeline :remote_media do
+    get("/web/*path", FrontendController, :index, as: :frontend_mastodon)
   end
 
   scope "/proxy/", Pleroma.Web.MediaProxy do
-    pipe_through(:remote_media)
-
     get("/:sig/:url", MediaProxyController, :remote)
     get("/:sig/:url/:filename", MediaProxyController, :remote)
   end
@@ -663,12 +658,12 @@ defmodule Pleroma.Web.Router do
     get("/check_password", MongooseIMController, :check_password)
   end
 
-  scope "/", Fallback do
-    get("/registration/:token", RedirectController, :registration_page)
-    get("/:maybe_nickname_or_id", RedirectController, :redirector_with_meta)
-    get("/api*path", RedirectController, :api_not_implemented)
-    get("/*path", RedirectController, :redirector)
+  scope "/", Pleroma.Web do
+    get("/registration/:token", FrontendController, :registration_page)
+    get("/:maybe_nickname_or_id", FrontendController, :index_with_meta)
+    get("/api*path", FrontendController, :api_not_implemented)
+    get("/*path", FrontendController, :index)
 
-    options("/*path", RedirectController, :empty)
+    options("/*path", FrontendController, :empty)
   end
 end

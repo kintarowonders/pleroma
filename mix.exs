@@ -5,6 +5,7 @@ defmodule Pleroma.Mixfile do
     [
       app: :pleroma,
       version: version("2.0.50"),
+      stable?: stable?(),
       elixir: "~> 1.8",
       elixirc_paths: elixirc_paths(Mix.env()),
       compilers: [:phoenix, :gettext] ++ Mix.compilers(),
@@ -284,5 +285,9 @@ defmodule Pleroma.Mixfile do
     [version, pre_release, build_metadata]
     |> Enum.filter(fn string -> string && string != "" end)
     |> Enum.join()
+  end
+
+  defp stable? do
+    match?({"tags/" <> _tag, 0}, System.cmd("git", ["describe", "--all"]))
   end
 end
