@@ -81,7 +81,7 @@ defmodule Pleroma.Application do
         [
           Pleroma.Stats,
           Pleroma.JobQueueMonitor,
-          {Oban, Config.get(Oban)}
+          {Oban, oban_config(Config.get(Oban), adapter)}
         ] ++
         task_children(@env) ++
         streamer_child(@env) ++
@@ -96,6 +96,18 @@ defmodule Pleroma.Application do
     opts = [strategy: :one_for_one, name: Pleroma.Supervisor]
     Supervisor.start_link(children, opts)
   end
+
+  defp oban_config(config, Tesla.Adapter.Gun) do
+    crontab =
+      case List.keyfind(config[:crontab], Pleroma.Workers.Cron.CloseIdleConnections, 1) do
+        nil -> [{"*/30 * * * *", Pleroma.Workers.Cron.CloseIdleConnections} | config[:crontab]]
+        _ -> config[:crontab]
+      end
+
+    put_in(config[:crontab], crontab)
+  end
+
+  defp oban_config(config, _), do: config
 
   def load_custom_modules do
     dir = Config.get([:modules, :runtime_dir])

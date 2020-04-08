@@ -1894,7 +1894,8 @@ config :pleroma, :config_description, [
           {"0 * * * *", Pleroma.Workers.Cron.StatsWorker},
           {"* * * * *", Pleroma.Workers.Cron.PurgeExpiredActivitiesWorker},
           {"0 0 * * 0", Pleroma.Workers.Cron.DigestEmailsWorker},
-          {"0 0 * * *", Pleroma.Workers.Cron.NewUsersDigestWorker}
+          {"0 0 * * *", Pleroma.Workers.Cron.NewUsersDigestWorker},
+          {"*/30 * * * *", Pleroma.Workers.Cron.CloseIdleConnections}
         ]
       }
     ]

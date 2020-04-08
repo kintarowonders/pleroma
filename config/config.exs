@@ -605,6 +605,7 @@ config :pleroma, Pleroma.Repo,
 config :pleroma, :connections_pool,
   checkin_timeout: 250,
   max_connections: 250,
+  max_idle_time: 30,
   retry: 1,
   retry_timeout: 1000,
   await_up_timeout: 5_000

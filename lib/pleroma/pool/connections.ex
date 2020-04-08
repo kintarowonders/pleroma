@@ -12,6 +12,7 @@ defmodule Pleroma.Pool.Connections do
 
   @type domain :: String.t()
   @type conn :: Pleroma.Gun.Conn.t()
+  @type seconds :: pos_integer()
 
   @type t :: %__MODULE__{
           conns: %{domain() => conn()},
@@ -60,6 +61,11 @@ defmodule Pleroma.Pool.Connections do
   @spec get_unused_conns(atom()) :: [{domain(), conn()}]
   def get_unused_conns(name) do
     GenServer.call(name, :unused_conns)
+  end
+
+  @spec close_idle_conns(atom(), seconds()) :: :ok
+  def close_idle_conns(name, max_idle_time) do
+    GenServer.cast(name, {:close_idle_conns, max_idle_time})
   end
 
   @spec checkout(pid(), pid(), atom()) :: :ok
@@ -114,6 +120,31 @@ defmodule Pleroma.Pool.Connections do
   end
 
   @impl true
+  def handle_cast({:close_idle_conns, max_idle_time}, state) do
+    closing_time = :os.system_time(:second) - max_idle_time
+
+    idle_conns_keys =
+      state.conns
+      |> Enum.filter(&idle_more_than?(&1, closing_time))
+      |> Enum.map(fn {key, %{conn: conn}} ->
+        Gun.close(conn)
+        key
+      end)
+
+    {:noreply, put_in(state.conns, Map.drop(state.conns, idle_conns_keys))}
+  end
+
+  defp idle_more_than?(
+         {_, %{conn_state: :idle, last_reference: idle_since}},
+         closing_time
+       )
+       when closing_time >= idle_since do
+    true
+  end
+
+  defp idle_more_than?(_, _), do: false
+
+  @impl true
   def handle_call({:checkin, uri}, from, state) do
     key = "#{uri.scheme}:#{uri.host}:#{uri.port}"
 
@@ -154,16 +185,16 @@ defmodule Pleroma.Pool.Connections do
   def handle_call(:unused_conns, _from, state) do
     unused_conns =
       state.conns
-      |> Enum.filter(&filter_conns/1)
-      |> Enum.sort(&sort_conns/2)
+      |> Enum.filter(&idle_conn?/1)
+      |> Enum.sort(&least_used/2)
 
     {:reply, unused_conns, state}
   end
 
-  defp filter_conns({_, %{conn_state: :idle, used_by: []}}), do: true
-  defp filter_conns(_), do: false
+  defp idle_conn?({_, %{conn_state: :idle}}), do: true
+  defp idle_conn?(_), do: false
 
-  defp sort_conns({_, c1}, {_, c2}) do
+  defp least_used({_, c1}, {_, c2}) do
     c1.crf <= c2.crf and c1.last_reference <= c2.last_reference
   end
 
