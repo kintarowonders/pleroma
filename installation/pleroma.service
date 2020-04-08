@@ -34,5 +34,8 @@ NoNewPrivileges=true
 ; Drops the sysadmin capability from the daemon.
 CapabilityBoundingSet=~CAP_SYS_ADMIN
 
+; Limit for file descriptors
+LimitNOFILE=2048
+
 [Install]
 WantedBy=multi-user.target
