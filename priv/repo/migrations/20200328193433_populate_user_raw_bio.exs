@@ -1,13 +1,13 @@
 defmodule Pleroma.Repo.Migrations.PopulateUserRawBio do
   use Ecto.Migration
   import Ecto.Query
-  alias Pleroma.User
   alias Pleroma.Repo
 
   def change do
     {:ok, _} = Application.ensure_all_started(:fast_sanitize)
 
-    User.Query.build(%{local: true})
+    from(u in "users")
+    |> where([u], u.local == true)
     |> select([u], struct(u, [:id, :ap_id, :bio]))
     |> Repo.stream()
     |> Enum.each(fn %{bio: bio} = user ->
