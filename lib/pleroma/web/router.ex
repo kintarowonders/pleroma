@@ -29,6 +29,7 @@ defmodule Pleroma.Web.Router do
     plug(Pleroma.Plugs.SetUserSessionIdPlug)
     plug(Pleroma.Plugs.EnsureUserKeyPlug)
     plug(Pleroma.Plugs.IdempotencyPlug)
+    plug(OpenApiSpex.Plug.PutApiSpec, module: Pleroma.Web.ApiSpec)
   end
 
   pipeline :authenticated_api do
@@ -44,6 +45,7 @@ defmodule Pleroma.Web.Router do
     plug(Pleroma.Plugs.SetUserSessionIdPlug)
     plug(Pleroma.Plugs.EnsureAuthenticatedPlug)
     plug(Pleroma.Plugs.IdempotencyPlug)
+    plug(OpenApiSpex.Plug.PutApiSpec, module: Pleroma.Web.ApiSpec)
   end
 
   pipeline :admin_api do
@@ -61,6 +63,7 @@ defmodule Pleroma.Web.Router do
     plug(Pleroma.Plugs.EnsureAuthenticatedPlug)
     plug(Pleroma.Plugs.UserIsAdminPlug)
     plug(Pleroma.Plugs.IdempotencyPlug)
+    plug(OpenApiSpex.Plug.PutApiSpec, module: Pleroma.Web.ApiSpec)
   end
 
   pipeline :mastodon_html do
@@ -94,10 +97,12 @@ defmodule Pleroma.Web.Router do
 
   pipeline :config do
     plug(:accepts, ["json", "xml"])
+    plug(OpenApiSpex.Plug.PutApiSpec, module: Pleroma.Web.ApiSpec)
   end
 
   pipeline :pleroma_api do
     plug(:accepts, ["html", "json"])
+    plug(OpenApiSpex.Plug.PutApiSpec, module: Pleroma.Web.ApiSpec)
   end
 
   pipeline :mailbox_preview do
@@ -173,6 +178,8 @@ defmodule Pleroma.Web.Router do
 
     get("/users/:nickname/password_reset", AdminAPIController, :get_password_reset)
     patch("/users/force_password_reset", AdminAPIController, :force_password_reset)
+    get("/users/:nickname/credentials", AdminAPIController, :show_user_credentials)
+    patch("/users/:nickname/credentials", AdminAPIController, :update_user_credentials)
 
     get("/users", AdminAPIController, :list_users)
     get("/users/:nickname", AdminAPIController, :user_show)
@@ -184,7 +191,6 @@ defmodule Pleroma.Web.Router do
     patch("/users/resend_confirmation_email", AdminAPIController, :resend_confirmation_email)
 
     get("/reports", AdminAPIController, :list_reports)
-    get("/grouped_reports", AdminAPIController, :list_grouped_reports)
     get("/reports/:id", AdminAPIController, :report_show)
     patch("/reports", AdminAPIController, :reports_update)
     post("/reports/:id/notes", AdminAPIController, :report_notes_create)
@@ -346,9 +352,11 @@ defmodule Pleroma.Web.Router do
 
     get("/notifications", NotificationController, :index)
     get("/notifications/:id", NotificationController, :show)
+    post("/notifications/:id/dismiss", NotificationController, :dismiss)
     post("/notifications/clear", NotificationController, :clear)
-    post("/notifications/dismiss", NotificationController, :dismiss)
     delete("/notifications/destroy_multiple", NotificationController, :destroy_multiple)
+    # Deprecated: was removed in Mastodon v3, use `/notifications/:id/dismiss` instead
+    post("/notifications/dismiss", NotificationController, :dismiss)
 
     get("/scheduled_statuses", ScheduledActivityController, :index)
     get("/scheduled_statuses/:id", ScheduledActivityController, :show)
@@ -499,6 +507,12 @@ defmodule Pleroma.Web.Router do
     )
   end
 
+  scope "/api" do
+    pipe_through(:api)
+
+    get("/openapi", OpenApiSpex.Plug.RenderSpec, [])
+  end
+
   scope "/api", Pleroma.Web, as: :authenticated_twitter_api do
     pipe_through(:authenticated_api)
 
@@ -513,7 +527,7 @@ defmodule Pleroma.Web.Router do
   end
 
   pipeline :ostatus do
-    plug(:accepts, ["html", "xml", "atom", "activity+json", "json"])
+    plug(:accepts, ["html", "xml", "rss", "atom", "activity+json", "json"])
     plug(Pleroma.Plugs.StaticFEPlug)
   end
 
@@ -541,6 +555,7 @@ defmodule Pleroma.Web.Router do
     get("/mailer/unsubscribe/:token", Mailer.SubscriptionController, :unsubscribe)
   end
 
+  # Server to Server (S2S) AP interactions
   pipeline :activitypub do
     plug(:accepts, ["activity+json", "json"])
     plug(Pleroma.Web.Plugs.HTTPSignaturePlug)
@@ -554,6 +569,7 @@ defmodule Pleroma.Web.Router do
     get("/users/:nickname/outbox", ActivityPubController, :outbox)
   end
 
+  # Client to Server (C2S) AP interactions
   pipeline :activitypub_client do
     plug(:accepts, ["activity+json", "json"])
     plug(:fetch_session)
@@ -597,8 +613,8 @@ defmodule Pleroma.Web.Router do
       post("/inbox", ActivityPubController, :inbox)
     end
 
-    get("/following", ActivityPubController, :following, assigns: %{relay: true})
-    get("/followers", ActivityPubController, :followers, assigns: %{relay: true})
+    get("/following", ActivityPubController, :relay_following)
+    get("/followers", ActivityPubController, :relay_followers)
   end
 
   scope "/internal/fetch", Pleroma.Web.ActivityPub do

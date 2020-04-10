@@ -1781,25 +1781,6 @@ config :pleroma, :config_description, [
     ]
   },
   %{
-    group: :pleroma_job_queue,
-    key: :queues,
-    type: :group,
-    description: "[Deprecated] Replaced with `Oban`/`:queues` (keeping the same format)"
-  },
-  %{
-    group: :pleroma,
-    key: Pleroma.Web.Federator.RetryQueue,
-    type: :group,
-    description: "[Deprecated] See `Oban` and `:workers` sections for configuration notes",
-    children: [
-      %{
-        key: :max_retries,
-        type: :integer,
-        description: "[Deprecated] Replaced as `Oban`/`:queues`/`:outgoing_federation` value"
-      }
-    ]
-  },
-  %{
     group: :pleroma,
     key: Oban,
     type: :group,
@@ -2004,25 +1985,6 @@ config :pleroma, :config_description, [
         suggestions: [
           Pleroma.Web.RichMedia.Parser.TTL.AwsSignedUrl
         ]
-      }
-    ]
-  },
-  %{
-    group: :pleroma,
-    key: :fetch_initial_posts,
-    type: :group,
-    description: "Fetching initial posts settings",
-    children: [
-      %{
-        key: :enabled,
-        type: :boolean,
-        description: "Fetch posts when a new user is federated with"
-      },
-      %{
-        key: :pages,
-        type: :integer,
-        description: "The amount of pages to fetch",
-        suggestions: [5]
       }
     ]
   },
@@ -2480,7 +2442,7 @@ config :pleroma, :config_description, [
       %{
         key: :relations_actions,
         type: [:tuple, {:list, :tuple}],
-        description: "For actions on relations with all users (follow, unfollow)",
+        description: "For actions on relationships with all users (follow, unfollow)",
         suggestions: [{1000, 10}, [{10_000, 10}, {10_000, 50}]]
       },
       %{
@@ -2593,19 +2555,6 @@ config :pleroma, :config_description, [
             suggestions: ["activity+json"]
           }
         ]
-      }
-    ]
-  },
-  %{
-    group: :tesla,
-    type: :group,
-    description: "Tesla settings",
-    children: [
-      %{
-        key: :adapter,
-        type: :module,
-        description: "Tesla adapter",
-        suggestions: [Tesla.Adapter.Hackney]
       }
     ]
   },
@@ -2964,6 +2913,279 @@ config :pleroma, :config_description, [
         type: :integer,
         description: "Maximum number of workers created if pool is empty.",
         suggestions: [2]
+      }
+    ]
+  },
+  %{
+    group: :pleroma,
+    key: :connections_pool,
+    type: :group,
+    description: "Advanced settings for `gun` connections pool",
+    children: [
+      %{
+        key: :checkin_timeout,
+        type: :integer,
+        description: "Timeout to checkin connection from pool. Default: 250ms.",
+        suggestions: [250]
+      },
+      %{
+        key: :max_connections,
+        type: :integer,
+        description: "Maximum number of connections in the pool. Default: 250 connections.",
+        suggestions: [250]
+      },
+      %{
+        key: :retry,
+        type: :integer,
+        description:
+          "Number of retries, while `gun` will try to reconnect if connection goes down. Default: 1.",
+        suggestions: [1]
+      },
+      %{
+        key: :retry_timeout,
+        type: :integer,
+        description:
+          "Time between retries when `gun` will try to reconnect in milliseconds. Default: 1000ms.",
+        suggestions: [1000]
+      },
+      %{
+        key: :await_up_timeout,
+        type: :integer,
+        description: "Timeout while `gun` will wait until connection is up. Default: 5000ms.",
+        suggestions: [5000]
+      }
+    ]
+  },
+  %{
+    group: :pleroma,
+    key: :pools,
+    type: :group,
+    description: "Advanced settings for `gun` workers pools",
+    children: [
+      %{
+        key: :federation,
+        type: :keyword,
+        description: "Settings for federation pool.",
+        children: [
+          %{
+            key: :size,
+            type: :integer,
+            description: "Number workers in the pool.",
+            suggestions: [50]
+          },
+          %{
+            key: :max_overflow,
+            type: :integer,
+            description: "Number of additional workers if pool is under load.",
+            suggestions: [10]
+          },
+          %{
+            key: :timeout,
+            type: :integer,
+            description: "Timeout while `gun` will wait for response.",
+            suggestions: [150_000]
+          }
+        ]
+      },
+      %{
+        key: :media,
+        type: :keyword,
+        description: "Settings for media pool.",
+        children: [
+          %{
+            key: :size,
+            type: :integer,
+            description: "Number workers in the pool.",
+            suggestions: [50]
+          },
+          %{
+            key: :max_overflow,
+            type: :integer,
+            description: "Number of additional workers if pool is under load.",
+            suggestions: [10]
+          },
+          %{
+            key: :timeout,
+            type: :integer,
+            description: "Timeout while `gun` will wait for response.",
+            suggestions: [150_000]
+          }
+        ]
+      },
+      %{
+        key: :upload,
+        type: :keyword,
+        description: "Settings for upload pool.",
+        children: [
+          %{
+            key: :size,
+            type: :integer,
+            description: "Number workers in the pool.",
+            suggestions: [25]
+          },
+          %{
+            key: :max_overflow,
+            type: :integer,
+            description: "Number of additional workers if pool is under load.",
+            suggestions: [5]
+          },
+          %{
+            key: :timeout,
+            type: :integer,
+            description: "Timeout while `gun` will wait for response.",
+            suggestions: [300_000]
+          }
+        ]
+      },
+      %{
+        key: :default,
+        type: :keyword,
+        description: "Settings for default pool.",
+        children: [
+          %{
+            key: :size,
+            type: :integer,
+            description: "Number workers in the pool.",
+            suggestions: [10]
+          },
+          %{
+            key: :max_overflow,
+            type: :integer,
+            description: "Number of additional workers if pool is under load.",
+            suggestions: [2]
+          },
+          %{
+            key: :timeout,
+            type: :integer,
+            description: "Timeout while `gun` will wait for response.",
+            suggestions: [10_000]
+          }
+        ]
+      }
+    ]
+  },
+  %{
+    group: :pleroma,
+    key: :hackney_pools,
+    type: :group,
+    description: "Advanced settings for `hackney` connections pools",
+    children: [
+      %{
+        key: :federation,
+        type: :keyword,
+        description: "Settings for federation pool.",
+        children: [
+          %{
+            key: :max_connections,
+            type: :integer,
+            description: "Number workers in the pool.",
+            suggestions: [50]
+          },
+          %{
+            key: :timeout,
+            type: :integer,
+            description: "Timeout while `hackney` will wait for response.",
+            suggestions: [150_000]
+          }
+        ]
+      },
+      %{
+        key: :media,
+        type: :keyword,
+        description: "Settings for media pool.",
+        children: [
+          %{
+            key: :max_connections,
+            type: :integer,
+            description: "Number workers in the pool.",
+            suggestions: [50]
+          },
+          %{
+            key: :timeout,
+            type: :integer,
+            description: "Timeout while `hackney` will wait for response.",
+            suggestions: [150_000]
+          }
+        ]
+      },
+      %{
+        key: :upload,
+        type: :keyword,
+        description: "Settings for upload pool.",
+        children: [
+          %{
+            key: :max_connections,
+            type: :integer,
+            description: "Number workers in the pool.",
+            suggestions: [25]
+          },
+          %{
+            key: :timeout,
+            type: :integer,
+            description: "Timeout while `hackney` will wait for response.",
+            suggestions: [300_000]
+          }
+        ]
+      }
+    ]
+  },
+  %{
+    group: :pleroma,
+    key: :restrict_unauthenticated,
+    type: :group,
+    description:
+      "Disallow viewing timelines, user profiles and statuses for unauthenticated users.",
+    children: [
+      %{
+        key: :timelines,
+        type: :map,
+        description: "Settings for public and federated timelines.",
+        children: [
+          %{
+            key: :local,
+            type: :boolean,
+            description: "Disallow view public timeline."
+          },
+          %{
+            key: :federated,
+            type: :boolean,
+            description: "Disallow view federated timeline."
+          }
+        ]
+      },
+      %{
+        key: :profiles,
+        type: :map,
+        description: "Settings for user profiles.",
+        children: [
+          %{
+            key: :local,
+            type: :boolean,
+            description: "Disallow view local user profiles."
+          },
+          %{
+            key: :remote,
+            type: :boolean,
+            description: "Disallow view remote user profiles."
+          }
+        ]
+      },
+      %{
+        key: :activities,
+        type: :map,
+        description: "Settings for statuses.",
+        children: [
+          %{
+            key: :local,
+            type: :boolean,
+            description: "Disallow view local statuses."
+          },
+          %{
+            key: :remote,
+            type: :boolean,
+            description: "Disallow view remote statuses."
+          }
+        ]
       }
     ]
   }

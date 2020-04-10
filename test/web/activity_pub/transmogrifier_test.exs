@@ -25,7 +25,7 @@ defmodule Pleroma.Web.ActivityPub.TransmogrifierTest do
     :ok
   end
 
-  clear_config([:instance, :max_remote_account_fields])
+  setup do: clear_config([:instance, :max_remote_account_fields])
 
   describe "handle_incoming" do
     test "it ignores an incoming notice if we already have it" do
@@ -334,7 +334,9 @@ defmodule Pleroma.Web.ActivityPub.TransmogrifierTest do
         |> Poison.decode!()
         |> Map.put("object", activity.data["object"])
 
-      {:ok, %Activity{data: data, local: false}} = Transmogrifier.handle_incoming(data)
+      {:ok, %Activity{data: data, local: false} = activity} = Transmogrifier.handle_incoming(data)
+
+      refute Enum.empty?(activity.recipients)
 
       assert data["actor"] == "http://mastodon.example.org/users/admin"
       assert data["type"] == "Like"
@@ -1228,19 +1230,13 @@ defmodule Pleroma.Web.ActivityPub.TransmogrifierTest do
       attachment = %{
         "type" => "Link",
         "mediaType" => "video/mp4",
-        "href" =>
-          "https://peertube.moe/static/webseed/df5f464b-be8d-46fb-ad81-2d4c2d1630e3-480.mp4",
-        "mimeType" => "video/mp4",
-        "size" => 5_015_880,
         "url" => [
           %{
             "href" =>
               "https://peertube.moe/static/webseed/df5f464b-be8d-46fb-ad81-2d4c2d1630e3-480.mp4",
-            "mediaType" => "video/mp4",
-            "type" => "Link"
+            "mediaType" => "video/mp4"
           }
-        ],
-        "width" => 480
+        ]
       }
 
       assert object.data["url"] ==
@@ -1351,11 +1347,8 @@ defmodule Pleroma.Web.ActivityPub.TransmogrifierTest do
   end
 
   describe "`handle_incoming/2`, Mastodon format `replies` handling" do
-    clear_config([:activitypub, :note_replies_output_limit]) do
-      Pleroma.Config.put([:activitypub, :note_replies_output_limit], 5)
-    end
-
-    clear_config([:instance, :federation_incoming_replies_max_depth])
+    setup do: clear_config([:activitypub, :note_replies_output_limit], 5)
+    setup do: clear_config([:instance, :federation_incoming_replies_max_depth])
 
     setup do
       data =
@@ -1394,11 +1387,8 @@ defmodule Pleroma.Web.ActivityPub.TransmogrifierTest do
   end
 
   describe "`handle_incoming/2`, Pleroma format `replies` handling" do
-    clear_config([:activitypub, :note_replies_output_limit]) do
-      Pleroma.Config.put([:activitypub, :note_replies_output_limit], 5)
-    end
-
-    clear_config([:instance, :federation_incoming_replies_max_depth])
+    setup do: clear_config([:activitypub, :note_replies_output_limit], 5)
+    setup do: clear_config([:instance, :federation_incoming_replies_max_depth])
 
     setup do
       user = insert(:user)
@@ -1882,7 +1872,7 @@ defmodule Pleroma.Web.ActivityPub.TransmogrifierTest do
   end
 
   describe "fix_in_reply_to/2" do
-    clear_config([:instance, :federation_incoming_replies_max_depth])
+    setup do: clear_config([:instance, :federation_incoming_replies_max_depth])
 
     setup do
       data = Poison.decode!(File.read!("test/fixtures/mastodon-post-activity.json"))
@@ -2067,11 +2057,7 @@ defmodule Pleroma.Web.ActivityPub.TransmogrifierTest do
                  %{
                    "mediaType" => "video/mp4",
                    "url" => [
-                     %{
-                       "href" => "https://peertube.moe/stat-480.mp4",
-                       "mediaType" => "video/mp4",
-                       "type" => "Link"
-                     }
+                     %{"href" => "https://peertube.moe/stat-480.mp4", "mediaType" => "video/mp4"}
                    ]
                  }
                ]
@@ -2089,23 +2075,13 @@ defmodule Pleroma.Web.ActivityPub.TransmogrifierTest do
                  %{
                    "mediaType" => "video/mp4",
                    "url" => [
-                     %{
-                       "href" => "https://pe.er/stat-480.mp4",
-                       "mediaType" => "video/mp4",
-                       "type" => "Link"
-                     }
+                     %{"href" => "https://pe.er/stat-480.mp4", "mediaType" => "video/mp4"}
                    ]
                  },
                  %{
-                   "href" => "https://pe.er/stat-480.mp4",
                    "mediaType" => "video/mp4",
-                   "mimeType" => "video/mp4",
                    "url" => [
-                     %{
-                       "href" => "https://pe.er/stat-480.mp4",
-                       "mediaType" => "video/mp4",
-                       "type" => "Link"
-                     }
+                     %{"href" => "https://pe.er/stat-480.mp4", "mediaType" => "video/mp4"}
                    ]
                  }
                ]
@@ -2145,9 +2121,7 @@ defmodule Pleroma.Web.ActivityPub.TransmogrifierTest do
   end
 
   describe "set_replies/1" do
-    clear_config([:activitypub, :note_replies_output_limit]) do
-      Pleroma.Config.put([:activitypub, :note_replies_output_limit], 2)
-    end
+    setup do: clear_config([:activitypub, :note_replies_output_limit], 2)
 
     test "returns unmodified object if activity doesn't have self-replies" do
       data = Poison.decode!(File.read!("test/fixtures/mastodon-post-activity.json"))

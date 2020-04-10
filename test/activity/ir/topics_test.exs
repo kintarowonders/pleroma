@@ -59,8 +59,8 @@ defmodule Pleroma.Activity.Ir.TopicsTest do
   describe "public visibility create events" do
     setup do
       activity = %Activity{
-        object: %Object{data: %{"type" => "Create", "attachment" => []}},
-        data: %{"to" => [Pleroma.Constants.as_public()]}
+        object: %Object{data: %{"attachment" => []}},
+        data: %{"type" => "Create", "to" => [Pleroma.Constants.as_public()]}
       }
 
       {:ok, activity: activity}
@@ -83,7 +83,7 @@ defmodule Pleroma.Activity.Ir.TopicsTest do
       assert Enum.member?(topics, "hashtag:bar")
     end
 
-    test "only converts strinngs to hash tags", %{
+    test "only converts strings to hash tags", %{
       activity: %{object: %{data: data} = object} = activity
     } do
       tagged_data = Map.put(data, "tag", [2])
@@ -98,8 +98,8 @@ defmodule Pleroma.Activity.Ir.TopicsTest do
   describe "public visibility create events with attachments" do
     setup do
       activity = %Activity{
-        object: %Object{data: %{"type" => "Create", "attachment" => ["foo"]}},
-        data: %{"to" => [Pleroma.Constants.as_public()]}
+        object: %Object{data: %{"attachment" => ["foo"]}},
+        data: %{"type" => "Create", "to" => [Pleroma.Constants.as_public()]}
       }
 
       {:ok, activity: activity}

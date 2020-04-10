@@ -37,9 +37,7 @@ defmodule Pleroma.Web.ActivityPub.ObjectViewTest do
   end
 
   describe "note activity's `replies` collection rendering" do
-    clear_config([:activitypub, :note_replies_output_limit]) do
-      Pleroma.Config.put([:activitypub, :note_replies_output_limit], 5)
-    end
+    setup do: clear_config([:activitypub, :note_replies_output_limit], 5)
 
     test "renders `replies` collection for a note activity" do
       user = insert(:user)
@@ -61,7 +59,7 @@ defmodule Pleroma.Web.ActivityPub.ObjectViewTest do
     object = Object.normalize(note)
     user = insert(:user)
 
-    {:ok, like_activity, _} = CommonAPI.favorite(note.id, user)
+    {:ok, like_activity} = CommonAPI.favorite(user, note.id)
 
     result = ObjectView.render("object.json", %{object: like_activity})
 

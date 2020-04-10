@@ -3,11 +3,9 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 defmodule Pleroma.ReverseProxy do
-  alias Pleroma.HTTP
-
   @keep_req_headers ~w(accept user-agent accept-encoding cache-control if-modified-since) ++
                       ~w(if-unmodified-since if-none-match if-range range)
-  @resp_cache_headers ~w(etag date last-modified cache-control)
+  @resp_cache_headers ~w(etag date last-modified)
   @keep_resp_headers @resp_cache_headers ++
                        ~w(content-type content-disposition content-encoding content-range) ++
                        ~w(accept-ranges vary)
@@ -34,9 +32,6 @@ defmodule Pleroma.ReverseProxy do
   * request: `#{inspect(@keep_req_headers)}`
   * response: `#{inspect(@keep_resp_headers)}`
 
-  If no caching headers (`#{inspect(@resp_cache_headers)}`) are returned by upstream, `cache-control` will be
-  set to `#{inspect(@default_cache_control_header)}`.
-
   Options:
 
   * `redirect_on_failure` (default `false`). Redirects the client to the real remote URL if there's any HTTP
@@ -61,10 +56,10 @@ defmodule Pleroma.ReverseProxy do
 
   * `req_headers`, `resp_headers` additional headers.
 
-  * `http`: options for [hackney](https://github.com/benoitc/hackney).
+  * `http`: options for [hackney](https://github.com/benoitc/hackney) or [gun](https://github.com/ninenines/gun).
 
   """
-  @default_hackney_options [pool: :media]
+  @default_options [pool: :media]
 
   @inline_content_types [
     "image/gif",
@@ -97,11 +92,7 @@ defmodule Pleroma.ReverseProxy do
   def call(_conn, _url, _opts \\ [])
 
   def call(conn = %{method: method}, url, opts) when method in @methods do
-    hackney_opts =
-      Pleroma.HTTP.Connection.hackney_options([])
-      |> Keyword.merge(@default_hackney_options)
-      |> Keyword.merge(Keyword.get(opts, :http, []))
-      |> HTTP.process_request_options()
+    client_opts = Keyword.merge(@default_options, Keyword.get(opts, :http, []))
 
     req_headers = build_req_headers(conn.req_headers, opts)
 
@@ -113,7 +104,7 @@ defmodule Pleroma.ReverseProxy do
       end
 
     with {:ok, nil} <- Cachex.get(:failed_proxy_url_cache, url),
-         {:ok, code, headers, client} <- request(method, url, req_headers, hackney_opts),
+         {:ok, code, headers, client} <- request(method, url, req_headers, client_opts),
          :ok <-
            header_length_constraint(
              headers,
@@ -159,11 +150,11 @@ defmodule Pleroma.ReverseProxy do
     |> halt()
   end
 
-  defp request(method, url, headers, hackney_opts) do
+  defp request(method, url, headers, opts) do
     Logger.debug("#{__MODULE__} #{method} #{url} #{inspect(headers)}")
     method = method |> String.downcase() |> String.to_existing_atom()
 
-    case client().request(method, url, headers, "", hackney_opts) do
+    case client().request(method, url, headers, "", opts) do
       {:ok, code, headers, client} when code in @valid_resp_codes ->
         {:ok, code, downcase_headers(headers), client}
 
@@ -213,7 +204,7 @@ defmodule Pleroma.ReverseProxy do
              duration,
              Keyword.get(opts, :max_read_duration, @max_read_duration)
            ),
-         {:ok, data} <- client().stream_body(client),
+         {:ok, data, client} <- client().stream_body(client),
          {:ok, duration} <- increase_read_duration(duration),
          sent_so_far = sent_so_far + byte_size(data),
          :ok <-
@@ -297,16 +288,17 @@ defmodule Pleroma.ReverseProxy do
 
   defp build_resp_cache_headers(headers, _opts) do
     has_cache? = Enum.any?(headers, fn {k, _} -> k in @resp_cache_headers end)
-    has_cache_control? = List.keymember?(headers, "cache-control", 0)
 
     cond do
-      has_cache? && has_cache_control? ->
-        headers
-
       has_cache? ->
-        # There's caching header present but no cache-control -- we need to explicitely override it
-        # to public as Plug defaults to "max-age=0, private, must-revalidate"
-        List.keystore(headers, "cache-control", 0, {"cache-control", "public"})
+        # There's caching header present but no cache-control -- we need to set our own
+        # as Plug defaults to "max-age=0, private, must-revalidate"
+        List.keystore(
+          headers,
+          "cache-control",
+          0,
+          {"cache-control", @default_cache_control_header}
+        )
 
       true ->
         List.keystore(

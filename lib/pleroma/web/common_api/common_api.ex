@@ -12,6 +12,8 @@ defmodule Pleroma.Web.CommonAPI do
   alias Pleroma.User
   alias Pleroma.UserRelationship
   alias Pleroma.Web.ActivityPub.ActivityPub
+  alias Pleroma.Web.ActivityPub.Builder
+  alias Pleroma.Web.ActivityPub.Pipeline
   alias Pleroma.Web.ActivityPub.Utils
   alias Pleroma.Web.ActivityPub.Visibility
 
@@ -19,6 +21,7 @@ defmodule Pleroma.Web.CommonAPI do
   import Pleroma.Web.CommonAPI.Utils
 
   require Pleroma.Constants
+  require Logger
 
   def follow(follower, followed) do
     timeout = Pleroma.Config.get([:activitypub, :follow_handshake_timeout])
@@ -112,16 +115,51 @@ defmodule Pleroma.Web.CommonAPI do
     end
   end
 
-  def favorite(id_or_ap_id, user) do
-    with %Activity{} = activity <- get_by_id_or_ap_id(id_or_ap_id) do
-      object = Object.normalize(activity)
+  @spec favorite(User.t(), binary()) :: {:ok, Activity.t() | :already_liked} | {:error, any()}
+  def favorite(%User{} = user, id) do
+    case favorite_helper(user, id) do
+      {:ok, _} = res ->
+        res
 
-      case Utils.get_existing_like(user.ap_id, object) do
-        %Activity{} = like_activity -> {:ok, like_activity, object}
-        nil -> ActivityPub.like(user, object, local_only: Activity.local_only?(activity))
-      end
+      {:error, :not_found} = res ->
+        res
+
+      {:error, e} ->
+        Logger.error("Could not favorite #{id}. Error: #{inspect(e, pretty: true)}")
+        {:error, dgettext("errors", "Could not favorite")}
+    end
+  end
+
+  def favorite_helper(user, id) do
+    with {_, %Activity{object: object}} <- {:find_object, Activity.get_by_id_with_object(id)},
+         {_, {:ok, like_object, meta}} <- {:build_object, Builder.like(user, object)},
+         {_, {:ok, %Activity{} = activity, _meta}} <-
+           {:common_pipeline,
+            Pipeline.common_pipeline(like_object, Keyword.put(meta, :local, true))} do
+      {:ok, activity}
     else
-      _ -> {:error, :not_found}
+      {:find_object, _} ->
+        {:error, :not_found}
+
+      {:common_pipeline,
+       {
+         :error,
+         {
+           :validate_object,
+           {
+             :error,
+             changeset
+           }
+         }
+       }} = e ->
+        if {:object, {"already liked by this actor", []}} in changeset.errors do
+          {:ok, :already_liked}
+        else
+          {:error, e}
+        end
+
+      e ->
+        {:error, e}
     end
   end
 
@@ -361,7 +399,7 @@ defmodule Pleroma.Web.CommonAPI do
   def thread_muted?(%{id: nil} = _user, _activity), do: false
 
   def thread_muted?(user, activity) do
-    ThreadMute.check_muted(user.id, activity.data["context"]) != []
+    ThreadMute.exists?(user.id, activity.data["context"])
   end
 
   def report(user, %{"account_id" => account_id} = data) do

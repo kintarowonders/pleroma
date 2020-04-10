@@ -60,6 +60,7 @@ defmodule Pleroma.Web.Nodeinfo.NodeinfoController do
         "pleroma_explicit_addressing",
         "shareable_emoji_packs",
         "multifetch",
+        "pleroma:api/v1/notifications:include_types_filter",
         if Config.get([:media_proxy, :enabled]) do
           "media_proxy"
         end,
@@ -74,7 +75,8 @@ defmodule Pleroma.Web.Nodeinfo.NodeinfoController do
         end,
         if Config.get([:instance, :safe_dm_mentions]) do
           "safe_dm_mentions"
-        end
+        end,
+        "pleroma_emoji_reactions"
       ]
       |> Enum.filter(& &1)
 

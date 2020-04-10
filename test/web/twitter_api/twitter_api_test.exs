@@ -109,7 +109,7 @@ defmodule Pleroma.Web.TwitterAPI.TwitterAPITest do
     {:ok, user2} = TwitterAPI.register_user(data2)
 
     expected_text =
-      ~s(<span class="h-card"><a data-user="#{user1.id}" class="u-url mention" href="#{
+      ~s(<span class="h-card"><a class="u-url mention" data-user="#{user1.id}" href="#{
         user1.ap_id
       }" rel="ugc">@<span>john</span></a></span> test)
 
@@ -117,9 +117,7 @@ defmodule Pleroma.Web.TwitterAPI.TwitterAPITest do
   end
 
   describe "register with one time token" do
-    clear_config([:instance, :registrations_open]) do
-      Pleroma.Config.put([:instance, :registrations_open], false)
-    end
+    setup do: clear_config([:instance, :registrations_open], false)
 
     test "returns user on success" do
       {:ok, invite} = UserInviteToken.create_invite()
@@ -184,9 +182,7 @@ defmodule Pleroma.Web.TwitterAPI.TwitterAPITest do
   end
 
   describe "registers with date limited token" do
-    clear_config([:instance, :registrations_open]) do
-      Pleroma.Config.put([:instance, :registrations_open], false)
-    end
+    setup do: clear_config([:instance, :registrations_open], false)
 
     setup do
       data = %{
@@ -246,9 +242,7 @@ defmodule Pleroma.Web.TwitterAPI.TwitterAPITest do
   end
 
   describe "registers with reusable token" do
-    clear_config([:instance, :registrations_open]) do
-      Pleroma.Config.put([:instance, :registrations_open], false)
-    end
+    setup do: clear_config([:instance, :registrations_open], false)
 
     test "returns user on success, after him registration fails" do
       {:ok, invite} = UserInviteToken.create_invite(%{max_use: 100})
@@ -292,9 +286,7 @@ defmodule Pleroma.Web.TwitterAPI.TwitterAPITest do
   end
 
   describe "registers with reusable date limited token" do
-    clear_config([:instance, :registrations_open]) do
-      Pleroma.Config.put([:instance, :registrations_open], false)
-    end
+    setup do: clear_config([:instance, :registrations_open], false)
 
     test "returns user on success" do
       {:ok, invite} = UserInviteToken.create_invite(%{expires_at: Date.utc_today(), max_use: 100})

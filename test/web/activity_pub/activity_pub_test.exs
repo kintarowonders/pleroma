@@ -27,7 +27,7 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubTest do
     :ok
   end
 
-  clear_config([:instance, :federating])
+  setup do: clear_config([:instance, :federating])
 
   describe "streaming out participations" do
     test "it streams them out" do
@@ -1410,7 +1410,7 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubTest do
   end
 
   describe "deletion" do
-    clear_config([:instance, :rewrite_policy])
+    setup do: clear_config([:instance, :rewrite_policy])
 
     test "it reverts deletion on error" do
       note = insert(:note_activity)
@@ -1437,6 +1437,12 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubTest do
       assert Activity.get_by_id(delete.id) != nil
 
       assert Repo.get(Object, object.id).data["type"] == "Tombstone"
+    end
+
+    test "it doesn't fail when an activity was already deleted" do
+      {:ok, delete} = insert(:note_activity) |> Object.normalize() |> ActivityPub.delete()
+
+      assert {:ok, ^delete} = delete |> Object.normalize() |> ActivityPub.delete()
     end
 
     test "decrements user note count only for public activities" do
@@ -1594,7 +1600,7 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubTest do
   end
 
   describe "update" do
-    clear_config([:instance, :max_pinned_statuses])
+    setup do: clear_config([:instance, :max_pinned_statuses])
 
     test "it creates an update activity with the new user data" do
       user = insert(:user)
@@ -1908,14 +1914,14 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubTest do
       {:ok, a4} = CommonAPI.post(user2, %{"status" => "Agent Smith "})
       {:ok, a5} = CommonAPI.post(user1, %{"status" => "Red or Blue "})
 
-      {:ok, _, _} = CommonAPI.favorite(a4.id, user)
-      {:ok, _, _} = CommonAPI.favorite(a3.id, other_user)
-      {:ok, _, _} = CommonAPI.favorite(a3.id, user)
-      {:ok, _, _} = CommonAPI.favorite(a5.id, other_user)
-      {:ok, _, _} = CommonAPI.favorite(a5.id, user)
-      {:ok, _, _} = CommonAPI.favorite(a4.id, other_user)
-      {:ok, _, _} = CommonAPI.favorite(a1.id, user)
-      {:ok, _, _} = CommonAPI.favorite(a1.id, other_user)
+      {:ok, _} = CommonAPI.favorite(user, a4.id)
+      {:ok, _} = CommonAPI.favorite(other_user, a3.id)
+      {:ok, _} = CommonAPI.favorite(user, a3.id)
+      {:ok, _} = CommonAPI.favorite(other_user, a5.id)
+      {:ok, _} = CommonAPI.favorite(user, a5.id)
+      {:ok, _} = CommonAPI.favorite(other_user, a4.id)
+      {:ok, _} = CommonAPI.favorite(user, a1.id)
+      {:ok, _} = CommonAPI.favorite(other_user, a1.id)
       result = ActivityPub.fetch_favourites(user)
 
       assert Enum.map(result, & &1.id) == [a1.id, a5.id, a3.id, a4.id]
@@ -1969,11 +1975,9 @@ defmodule Pleroma.Web.ActivityPub.ActivityPubTest do
 
       activity = %Activity{activity | object: nil}
 
-      assert [%Notification{activity: ^activity}] =
-               Notification.for_user(follower, %{with_move: true})
+      assert [%Notification{activity: ^activity}] = Notification.for_user(follower)
 
-      assert [%Notification{activity: ^activity}] =
-               Notification.for_user(follower_move_opted_out, %{with_move: true})
+      assert [%Notification{activity: ^activity}] = Notification.for_user(follower_move_opted_out)
     end
 
     test "old user must be in the new user's `also_known_as` list" do

@@ -118,7 +118,7 @@ The `type` value is `pleroma:emoji_reaction`. Has these fields:
 Accepts additional parameters:
 
 - `exclude_visibilities`: will exclude the notifications for activities with the given visibilities. The parameter accepts an array of visibility types (`public`, `unlisted`, `private`, `direct`). Usage example: `GET /api/v1/notifications?exclude_visibilities[]=direct&exclude_visibilities[]=private`.
-- `with_move`: boolean, when set to `true` will include Move notifications. `false` by default.
+- `include_types`: will include the notifications for activities with the given types. The parameter accepts an array of types (`mention`, `follow`, `reblog`, `favourite`, `move`, `pleroma:emoji_reaction`). Usage example: `GET /api/v1/notifications?include_types[]=mention&include_types[]=reblog`.
 
 ## POST `/api/v1/statuses`
 
@@ -166,6 +166,7 @@ Additional parameters can be added to the JSON body/Form data:
 - `actor_type` - the type of this account.
 
 ### Pleroma Settings Store
+
 Pleroma has mechanism that allows frontends to save blobs of json for each user on the backend. This can be used to save frontend-specific settings for a user that the backend does not need to know about.
 
 The parameter should have a form of `{frontend_name: {...}}`, with `frontend_name` identifying your type of client, e.g. `pleroma_fe`. It will overwrite everything under this property, but will not overwrite other frontend's settings.
@@ -174,17 +175,20 @@ This information is returned in the `verify_credentials` endpoint.
 
 ## Authentication
 
-*Pleroma supports refreshing tokens.
+*Pleroma supports refreshing tokens.*
 
 `POST /oauth/token`
-Post here request with grant_type=refresh_token to obtain new access token. Returns an access token.
+
+Post here request with `grant_type=refresh_token` to obtain new access token. Returns an access token.
 
 ## Account Registration
+
 `POST /api/v1/accounts`
 
-Has theses additionnal parameters (which are the same as in Pleroma-API):
-    * `fullname`: optional
-    * `bio`: optional
-    * `captcha_solution`: optional, contains provider-specific captcha solution,
-    * `captcha_token`: optional, contains provider-specific captcha token
-    * `token`: invite token required when the registerations aren't public.
+Has theses additional parameters (which are the same as in Pleroma-API):
+
+- `fullname`: optional
+- `bio`: optional
+- `captcha_solution`: optional, contains provider-specific captcha solution,
+- `captcha_token`: optional, contains provider-specific captcha token
+- `token`: invite token required when the registrations aren't public.

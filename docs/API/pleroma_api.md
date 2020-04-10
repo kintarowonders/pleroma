@@ -288,10 +288,11 @@ Pleroma Conversations have the same general structure that Mastodon Conversation
 2. Pleroma Conversations statuses can be requested by Conversation id.
 3. Pleroma Conversations can be replied to.
 
-Conversations have the additional field "recipients" under the "pleroma" key. This holds a list of all the accounts that will receive a message in this conversation.
+Conversations have the additional field `recipients` under the `pleroma` key. This holds a list of all the accounts that will receive a message in this conversation.
 
 The status posting endpoint takes an additional parameter, `in_reply_to_conversation_id`, which, when set, will set the visiblity to direct and address only the people who are the recipients of that Conversation.
 
+⚠ Conversation IDs can be found in direct messages with the `pleroma.direct_conversation_id` key, do not confuse it with `pleroma.conversation_id`.
 
 ## `GET /api/v1/pleroma/conversations/:id/statuses`
 ### Timeline for a given conversation
@@ -430,7 +431,7 @@ The status posting endpoint takes an additional parameter, `in_reply_to_conversa
 
 # Emoji Reactions
 
-Emoji reactions work a lot like favourites do. They make it possible to react to a post with a single emoji character.
+Emoji reactions work a lot like favourites do. They make it possible to react to a post with a single emoji character. To detect the presence of this feature, you can check `pleroma_emoji_reactions` entry in the features list of nodeinfo.
 
 ## `PUT /api/v1/pleroma/statuses/:id/reactions/:emoji`
 ### React to a post with a unicode emoji

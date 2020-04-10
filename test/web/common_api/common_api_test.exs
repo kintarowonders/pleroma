@@ -17,9 +17,9 @@ defmodule Pleroma.Web.CommonAPITest do
 
   require Pleroma.Constants
 
-  clear_config([:instance, :safe_dm_mentions])
-  clear_config([:instance, :limit])
-  clear_config([:instance, :max_pinned_statuses])
+  setup do: clear_config([:instance, :safe_dm_mentions])
+  setup do: clear_config([:instance, :limit])
+  setup do: clear_config([:instance, :max_pinned_statuses])
 
   test "when replying to a conversation / participation, it will set the correct context id even if no explicit reply_to is given" do
     user = insert(:user)
@@ -284,9 +284,12 @@ defmodule Pleroma.Web.CommonAPITest do
       user = insert(:user)
       other_user = insert(:user)
 
-      {:ok, activity} = CommonAPI.post(other_user, %{"status" => "cofe"})
+      {:ok, post_activity} = CommonAPI.post(other_user, %{"status" => "cofe"})
 
-      {:ok, %Activity{}, _} = CommonAPI.favorite(activity.id, user)
+      {:ok, %Activity{data: data}} = CommonAPI.favorite(user, post_activity.id)
+      assert data["type"] == "Like"
+      assert data["actor"] == user.ap_id
+      assert data["object"] == post_activity.data["object"]
     end
 
     test "retweeting a status twice returns the status" do
@@ -298,13 +301,13 @@ defmodule Pleroma.Web.CommonAPITest do
       {:ok, ^activity, ^object} = CommonAPI.repeat(activity.id, user)
     end
 
-    test "favoriting a status twice returns the status" do
+    test "favoriting a status twice returns ok, but without the like activity" do
       user = insert(:user)
       other_user = insert(:user)
 
       {:ok, activity} = CommonAPI.post(other_user, %{"status" => "cofe"})
-      {:ok, %Activity{} = activity, object} = CommonAPI.favorite(activity.id, user)
-      {:ok, ^activity, ^object} = CommonAPI.favorite(activity.id, user)
+      {:ok, %Activity{}} = CommonAPI.favorite(user, activity.id)
+      assert {:ok, :already_liked} = CommonAPI.favorite(user, activity.id)
     end
   end
 
@@ -742,8 +745,8 @@ defmodule Pleroma.Web.CommonAPITest do
 
       {:ok, activity} = CommonAPI.post(other_user, %{"status" => "cofe", "local_only" => true})
 
-      assert {:ok, %Activity{data: %{"type" => "Like", "local_only" => true}}, _} =
-               CommonAPI.favorite(activity.id, user)
+      assert {:ok, %Activity{data: %{"type" => "Like", "local_only" => true}}} =
+               CommonAPI.favorite(user, activity.id)
     end
 
     test "unfavorite" do
@@ -752,7 +755,7 @@ defmodule Pleroma.Web.CommonAPITest do
 
       {:ok, activity} = CommonAPI.post(other_user, %{"status" => "cofe", "local_only" => true})
 
-      {:ok, %Activity{}, _} = CommonAPI.favorite(activity.id, user)
+      {:ok, %Activity{}} = CommonAPI.favorite(user, activity.id)
 
       assert {:ok, %Activity{data: %{"type" => "Undo", "local_only" => true}}, _, _} =
                CommonAPI.unfavorite(activity.id, user)
